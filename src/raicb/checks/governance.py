@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List, Dict
 
-from ..config.schema import ProjectConfig, Finding, Severity, Status
+from ..config.schema import ProjectConfig, Finding, Severity, Status, Impact
 from ..core.loader import resolve_path
 
 
@@ -228,9 +228,9 @@ def _check_risk_management(config: ProjectConfig) -> List[Finding]:
             )
         )
     else:
-        # Analyze risk coverage
+        # Analyze risk coverage (compare Enum values properly)
         high_impact_threats = [
-            t for t in config.threats if t.impact in ["high", "critical"]
+            t for t in config.threats if t.impact in [Impact.HIGH, Impact.CRITICAL]
         ]
 
         findings.append(

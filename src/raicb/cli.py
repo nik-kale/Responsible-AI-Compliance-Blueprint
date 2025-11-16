@@ -10,12 +10,19 @@ from rich.console import Console
 from rich.table import Table
 import yaml
 
-from .config.schema import ProjectConfig
+from .config.schema import ProjectConfig, Severity, Status
 from .core.loader import load_config, save_config
 from .core.evaluator import run_all_checks, get_exit_code
 from .core.report import generate_report, generate_sbom
 from .core.mapping import generate_mapping_table, get_owasp_description, get_iso_description
 from .core.utils import get_project_root
+from .core.baseline import Baseline
+from .core.cache import CheckCache
+from .core.plugin import PluginManager
+from .core.dashboard import TrendTracker
+from .core.remediation import RemediationWizard
+from .integrations.webhook import WebhookIntegration
+from .integrations.sarif import SARIFExporter
 
 app = typer.Typer(
     name="raicb",
@@ -157,7 +164,7 @@ def run(
         "md,html",
         "--format",
         "-f",
-        help="Report formats (comma-separated: md,html,pdf)",
+        help="Report formats (comma-separated: md,html,pdf,sarif)",
     ),
     verbose: bool = typer.Option(
         False,
@@ -169,6 +176,21 @@ def run(
         "critical",
         "--fail-on",
         help="Exit with error on severity level (critical/high/medium/any)",
+    ),
+    cache: bool = typer.Option(
+        False,
+        "--cache",
+        help="Enable caching for faster subsequent runs",
+    ),
+    webhook_url: Optional[str] = typer.Option(
+        None,
+        "--webhook",
+        help="POST results to webhook URL",
+    ),
+    track: bool = typer.Option(
+        False,
+        "--track",
+        help="Record assessment in trends database",
     ),
 ):
     """
@@ -203,19 +225,58 @@ def run(
 
     # Generate reports
     formats = [f.strip() for f in format.split(",")]
+    generated_files = []
 
     try:
         console.print(f"\n[bold]Generating reports in {out}...[/bold]")
-        generated_files = generate_report(report, out, formats)
 
-        for file_path in generated_files:
-            console.print(f"  ✓ {file_path}")
+        # Handle SARIF separately
+        if "sarif" in formats:
+            formats.remove("sarif")
+            sarif_exporter = SARIFExporter()
+            sarif_path = out / f"raicb-{env}.sarif"
+            sarif_exporter.export_report(report, sarif_path)
+            generated_files.append(sarif_path)
+            console.print(f"  ✓ {sarif_path}")
+
+        # Generate standard reports
+        if formats:
+            standard_files = generate_report(report, out, formats)
+            generated_files.extend(standard_files)
+            for file_path in standard_files:
+                console.print(f"  ✓ {file_path}")
 
         console.print(f"\n[green]✓ Reports generated successfully[/green]")
 
     except Exception as e:
         console.print(f"[red]Error generating reports: {e}[/red]")
         raise typer.Exit(1)
+
+    # Post to webhook if requested
+    if webhook_url:
+        try:
+            console.print(f"\n[bold]Posting to webhook...[/bold]")
+            webhook = WebhookIntegration(webhook_url)
+            success = webhook.post_report(report, format="summary")
+            if success:
+                console.print("[green]✓ Posted to webhook successfully[/green]")
+            else:
+                console.print("[yellow]⚠ Failed to post to webhook[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Webhook error: {e}[/yellow]")
+
+    # Record in trends database if requested
+    if track:
+        try:
+            console.print(f"\n[bold]Recording assessment in trends...[/bold]")
+            tracker = TrendTracker()
+            assessment_id = tracker.record_assessment(report)
+            if assessment_id > 0:
+                console.print(f"[green]✓ Recorded assessment (ID: {assessment_id})[/green]")
+            else:
+                console.print("[yellow]⚠ Failed to record assessment[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Trend tracking error: {e}[/yellow]")
 
     # Print summary
     console.print(f"\n[bold]Assessment Complete[/bold]")
@@ -230,17 +291,14 @@ def run(
     if fail_on == "any" and report.failed_checks > 0:
         exit_code = 1
     elif fail_on == "medium":
-        from .config.schema import Severity, Status
         if any(f.severity in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM] and f.status == Status.FAIL
                for f in report.findings):
             exit_code = 1
     elif fail_on == "high":
-        from .config.schema import Severity, Status
         if any(f.severity in [Severity.CRITICAL, Severity.HIGH] and f.status == Status.FAIL
                for f in report.findings):
             exit_code = 1
     elif fail_on == "critical":
-        from .config.schema import Severity, Status
         if any(f.severity == Severity.CRITICAL and f.status == Status.FAIL
                for f in report.findings):
             exit_code = 1
@@ -352,6 +410,335 @@ def map(
         )
 
     console.print(table)
+
+
+@app.command()
+def baseline():
+    """
+    Manage baseline for CI/CD regression detection.
+    """
+    baseline_app = typer.Typer(help="Baseline management commands")
+    app.add_typer(baseline_app, name="baseline")
+
+
+@baseline.command("create")
+def baseline_create(
+    report: Path = typer.Argument(..., help="Path to assessment report JSON"),
+    output: Path = typer.Option(
+        Path("baseline.json"),
+        "--output",
+        "-o",
+        help="Output path for baseline file",
+    ),
+):
+    """Create baseline from assessment report."""
+    if not report.exists():
+        console.print(f"[red]Error: Report not found: {report}[/red]")
+        raise typer.Exit(1)
+
+    try:
+        baseline_obj = Baseline(output)
+        baseline_obj.create_from_report_file(report)
+        console.print(f"[green]✓ Baseline created: {output}[/green]")
+    except Exception as e:
+        console.print(f"[red]Error creating baseline: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@baseline.command("compare")
+def baseline_compare(
+    report: Path = typer.Argument(..., help="Path to current assessment report JSON"),
+    baseline_file: Path = typer.Option(
+        Path("baseline.json"),
+        "--baseline",
+        "-b",
+        help="Path to baseline file",
+    ),
+    fail_on_regression: bool = typer.Option(
+        True,
+        "--fail-on-regression",
+        help="Exit with error if regression detected",
+    ),
+):
+    """Compare assessment against baseline."""
+    if not report.exists():
+        console.print(f"[red]Error: Report not found: {report}[/red]")
+        raise typer.Exit(1)
+
+    if not baseline_file.exists():
+        console.print(f"[red]Error: Baseline not found: {baseline_file}[/red]")
+        raise typer.Exit(1)
+
+    try:
+        baseline_obj = Baseline(baseline_file)
+
+        # Load report
+        import json
+        with open(report) as f:
+            from .config.schema import AssessmentReport
+            report_data = json.load(f)
+            # Note: Would need proper deserialization here
+
+        comparison = baseline_obj.compare_file(report)
+
+        # Display results
+        console.print("\n[bold]Baseline Comparison[/bold]")
+        console.print(f"  Regression: {'❌ Yes' if comparison['regression'] else '✅ No'}")
+        console.print(f"  New Failures: {comparison['new_failures']}")
+        console.print(f"  Resolved Issues: {comparison['resolved_issues']}")
+
+        if comparison["regression"] and fail_on_regression:
+            raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[red]Error comparing baseline: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def cache():
+    """
+    Manage check results cache.
+    """
+    cache_app = typer.Typer(help="Cache management commands")
+    app.add_typer(cache_app, name="cache")
+
+
+@cache.command("stats")
+def cache_stats():
+    """Show cache statistics."""
+    try:
+        cache_obj = CheckCache()
+        stats = cache_obj.stats()
+
+        console.print("\n[bold]Cache Statistics[/bold]")
+        console.print(f"  Directory: {stats['cache_dir']}")
+        console.print(f"  Entries: {stats['total_entries']}")
+        console.print(f"  Size: {stats['total_size_mb']} MB")
+        if stats['total_entries'] > 0:
+            console.print(f"  Oldest: {stats['oldest_entry_age']}")
+            console.print(f"  Newest: {stats['newest_entry_age']}")
+
+    except Exception as e:
+        console.print(f"[red]Error getting cache stats: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@cache.command("clear")
+def cache_clear(
+    older_than_days: Optional[int] = typer.Option(
+        None,
+        "--older-than",
+        "-o",
+        help="Clear only entries older than N days (default: all)",
+    ),
+):
+    """Clear cache entries."""
+    try:
+        cache_obj = CheckCache()
+
+        if older_than_days:
+            from datetime import timedelta
+            cleared = cache_obj.clear(older_than=timedelta(days=older_than_days))
+            console.print(f"[green]✓ Cleared {cleared} cache entries older than {older_than_days} days[/green]")
+        else:
+            cleared = cache_obj.clear()
+            console.print(f"[green]✓ Cleared {cleared} cache entries[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error clearing cache: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def plugins(
+    plugins_dir: Path = typer.Option(
+        Path("./plugins"),
+        "--dir",
+        "-d",
+        help="Plugins directory",
+    ),
+):
+    """
+    List available compliance check plugins.
+    """
+    try:
+        manager = PluginManager(plugins_dir)
+        count = manager.discover_plugins()
+
+        if count == 0:
+            console.print(f"[yellow]No plugins found in {plugins_dir}[/yellow]")
+            console.print("\nCreate custom check plugins by implementing ComplianceCheckPlugin protocol.")
+            return
+
+        console.print(f"\n[bold]Available Plugins ({count})[/bold]\n")
+
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Name", style="cyan")
+        table.add_column("Version", style="green")
+        table.add_column("Module")
+
+        for plugin in manager.get_plugins():
+            table.add_row(plugin.name, plugin.version, type(plugin).__module__)
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error listing plugins: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def fix(
+    config: Path = typer.Option(
+        Path("raicb.yaml"),
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+    report: Path = typer.Option(
+        Path("./reports/assessment.json"),
+        "--report",
+        "-r",
+        help="Path to assessment report JSON",
+    ),
+    auto: bool = typer.Option(
+        False,
+        "--auto",
+        help="Auto-fix without prompting",
+    ),
+):
+    """
+    Interactive wizard to fix compliance issues.
+    """
+    console.print("[bold blue]Remediation Wizard[/bold blue]\n")
+
+    # Get project root
+    try:
+        project_root = config.parent.resolve()
+    except Exception:
+        project_root = Path.cwd()
+
+    # Load report
+    if not report.exists():
+        console.print(f"[yellow]Report not found: {report}[/yellow]")
+        console.print("Run 'raicb run' first to generate a report.")
+        raise typer.Exit(1)
+
+    try:
+        import json
+        from .config.schema import Finding
+
+        with open(report) as f:
+            report_data = json.load(f)
+            findings = [Finding(**f) for f in report_data.get("findings", [])]
+
+        wizard = RemediationWizard(project_root)
+
+        # Find auto-fixable issues
+        fixable = [f for f in findings if wizard.can_auto_fix(f)]
+
+        if not fixable:
+            console.print("[yellow]No auto-fixable issues found.[/yellow]")
+            return
+
+        console.print(f"Found {len(fixable)} auto-fixable issues:\n")
+
+        # List fixable issues
+        for i, finding in enumerate(fixable, 1):
+            console.print(f"{i}. [{finding.severity.value.upper()}] {finding.title}")
+            console.print(f"   Fix: {wizard.get_fix_description(finding)}\n")
+
+        # Apply fixes
+        if not auto:
+            confirm = typer.confirm("Apply these fixes?")
+            if not confirm:
+                console.print("Cancelled.")
+                return
+
+        # Apply each fix
+        for finding in fixable:
+            console.print(f"Fixing: {finding.check_id}...")
+            success = wizard.apply_fix(finding, interactive=False)
+
+        # Show summary
+        summary = wizard.get_summary()
+        console.print(f"\n[bold]Remediation Summary[/bold]")
+        console.print(f"  Applied: {summary['fixes_applied']}")
+        console.print(f"  Failed: {summary['fixes_failed']}")
+
+        if summary['fixes_applied'] > 0:
+            console.print("\n[green]✓ Fixes applied successfully[/green]")
+            console.print("Run 'raicb run' again to verify.")
+
+    except Exception as e:
+        console.print(f"[red]Error in remediation: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def trends(
+    project: Optional[str] = typer.Option(
+        None,
+        "--project",
+        "-p",
+        help="Filter by project name",
+    ),
+    env: Optional[str] = typer.Option(
+        None,
+        "--env",
+        "-e",
+        help="Filter by environment",
+    ),
+    days: int = typer.Option(
+        30,
+        "--days",
+        "-d",
+        help="Number of days to show",
+    ),
+    export: Optional[Path] = typer.Option(
+        None,
+        "--export",
+        help="Export trends to JSON file",
+    ),
+):
+    """
+    Show compliance trends over time.
+    """
+    try:
+        tracker = TrendTracker()
+
+        if export:
+            # Export to file
+            tracker.export_trends(export, project, env, days)
+            console.print(f"[green]✓ Trends exported to: {export}[/green]")
+            return
+
+        # Get statistics
+        stats = tracker.get_statistics(project, env)
+
+        if "error" in stats:
+            console.print(f"[yellow]{stats['error']}[/yellow]")
+            return
+
+        console.print("\n[bold]Compliance Trends[/bold]\n")
+        console.print(f"  Total Assessments: {stats['total_assessments']}")
+        console.print(f"  First Assessment: {stats['first_assessment']}")
+        console.print(f"  Latest Assessment: {stats['latest_assessment']}")
+
+        console.print("\n[bold]Averages:[/bold]")
+        console.print(f"  Critical: {stats['avg_critical']}")
+        console.print(f"  High: {stats['avg_high']}")
+        console.print(f"  Medium: {stats['avg_medium']}")
+
+        console.print("\n[bold]Latest:[/bold]")
+        console.print(f"  Critical: {stats['latest_critical']}")
+        console.print(f"  High: {stats['latest_high']}")
+        console.print(f"  Medium: {stats['latest_medium']}")
+
+    except Exception as e:
+        console.print(f"[red]Error getting trends: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command()

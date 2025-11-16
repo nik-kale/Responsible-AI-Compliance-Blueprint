@@ -231,24 +231,160 @@ def _check_vulnerabilities(config: ProjectConfig, project_root: Path) -> List[Fi
 
 
 def _check_licenses(config: ProjectConfig, project_root: Path) -> List[Finding]:
-    """Basic license compliance check."""
+    """Check license compliance using pip-licenses."""
     findings = []
 
-    # This is a simplified check - full license compliance requires specialized tools
-    findings.append(
-        Finding(
-            check_id="SUPPLY-003",
-            title="License Compliance Check",
-            severity=Severity.INFO,
-            status=Status.SKIP,
-            category="supply_chain",
-            description="Automated license compliance requires specialized tools",
-            evidence="Use tools like pip-licenses or license-checker",
-            remediation="Manually review dependency licenses for compatibility",
-            owasp_mapping=["LLM05"],
-            iso_mapping=["Clause_8"],
+    try:
+        import subprocess
+
+        # Try to run pip-licenses
+        result = subprocess.run(
+            ["pip-licenses", "--format=json", "--with-system"],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
-    )
+
+        if result.returncode == 0:
+            import json
+
+            licenses = json.loads(result.stdout)
+
+            # Define problematic license types
+            COPYLEFT_LICENSES = {"GPL", "GPLv2", "GPLv3", "AGPL", "AGPLv3", "LGPL"}
+            UNKNOWN_LICENSES = {"UNKNOWN", "Unknown"}
+
+            copyleft_packages = []
+            unknown_packages = []
+
+            for lic in licenses:
+                license_name = lic.get("License", "").upper()
+
+                # Check for copyleft licenses
+                if any(gpl in license_name for gpl in COPYLEFT_LICENSES):
+                    copyleft_packages.append(lic["Name"])
+
+                # Check for unknown licenses
+                if any(unk in license_name for unk in UNKNOWN_LICENSES):
+                    unknown_packages.append(lic["Name"])
+
+            # Report copyleft findings
+            if copyleft_packages:
+                findings.append(
+                    Finding(
+                        check_id="SUPPLY-003a",
+                        title=f"Copyleft Licenses Found: {len(copyleft_packages)}",
+                        severity=Severity.MEDIUM,
+                        status=Status.WARNING,
+                        category="supply_chain",
+                        description=f"Found {len(copyleft_packages)} packages with GPL/copyleft licenses",
+                        evidence=", ".join(copyleft_packages[:5])
+                        + (f" (+{len(copyleft_packages) - 5} more)" if len(copyleft_packages) > 5 else ""),
+                        remediation="Review license compatibility. Copyleft licenses may have distribution restrictions.",
+                        owasp_mapping=["LLM05"],
+                        iso_mapping=["Clause_8"],
+                    )
+                )
+
+            # Report unknown licenses
+            if unknown_packages:
+                findings.append(
+                    Finding(
+                        check_id="SUPPLY-003b",
+                        title=f"Unknown Licenses: {len(unknown_packages)}",
+                        severity=Severity.LOW,
+                        status=Status.WARNING,
+                        category="supply_chain",
+                        description=f"Found {len(unknown_packages)} packages with unknown licenses",
+                        evidence=", ".join(unknown_packages[:5])
+                        + (f" (+{len(unknown_packages) - 5} more)" if len(unknown_packages) > 5 else ""),
+                        remediation="Investigate and document licenses for these packages",
+                        owasp_mapping=["LLM05"],
+                        iso_mapping=["Clause_8"],
+                    )
+                )
+
+            # If no issues, report success
+            if not copyleft_packages and not unknown_packages:
+                findings.append(
+                    Finding(
+                        check_id="SUPPLY-003",
+                        title="No License Conflicts Detected",
+                        severity=Severity.INFO,
+                        status=Status.PASS,
+                        category="supply_chain",
+                        description="All dependencies have permissive licenses",
+                        evidence=f"Checked {len(licenses)} packages",
+                        remediation="N/A",
+                        owasp_mapping=["LLM05"],
+                        iso_mapping=["Clause_8"],
+                    )
+                )
+
+        else:
+            # pip-licenses returned error
+            findings.append(
+                Finding(
+                    check_id="SUPPLY-003",
+                    title="License Check Failed",
+                    severity=Severity.LOW,
+                    status=Status.WARNING,
+                    category="supply_chain",
+                    description="pip-licenses command failed",
+                    evidence=result.stderr[:200] if result.stderr else "Unknown error",
+                    remediation="Check pip-licenses installation and run manually",
+                    owasp_mapping=["LLM05"],
+                    iso_mapping=["Clause_8"],
+                )
+            )
+
+    except subprocess.TimeoutExpired:
+        findings.append(
+            Finding(
+                check_id="SUPPLY-003",
+                title="License Check Timeout",
+                severity=Severity.LOW,
+                status=Status.WARNING,
+                category="supply_chain",
+                description="License check timed out after 30 seconds",
+                evidence="Scan exceeded timeout",
+                remediation="Run 'pip-licenses' manually to review licenses",
+                owasp_mapping=["LLM05"],
+                iso_mapping=["Clause_8"],
+            )
+        )
+
+    except FileNotFoundError:
+        findings.append(
+            Finding(
+                check_id="SUPPLY-003",
+                title="pip-licenses Not Available",
+                severity=Severity.LOW,
+                status=Status.SKIP,
+                category="supply_chain",
+                description="pip-licenses is not installed",
+                evidence="Command not found",
+                remediation="Install pip-licenses: pip install pip-licenses",
+                owasp_mapping=["LLM05"],
+                iso_mapping=["Clause_8"],
+            )
+        )
+
+    except Exception as e:
+        findings.append(
+            Finding(
+                check_id="SUPPLY-003",
+                title="License Check Error",
+                severity=Severity.LOW,
+                status=Status.ERROR,
+                category="supply_chain",
+                description="Error running license compliance check",
+                evidence=f"Error: {str(e)}",
+                remediation="Check system configuration and try manual license review",
+                owasp_mapping=["LLM05"],
+                iso_mapping=["Clause_8"],
+            )
+        )
 
     return findings
 

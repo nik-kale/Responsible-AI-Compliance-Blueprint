@@ -1,7 +1,9 @@
 """Streamlit web UI for Responsible AI Compliance Blueprint."""
 
 import sys
+import tempfile
 from pathlib import Path
+from typing import Optional
 
 # Add parent directory to path to import raicb
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -14,6 +16,49 @@ from raicb.core.report import generate_report
 from raicb.core.mapping import generate_mapping_table, OWASP_MAPPING, ISO_MAPPING
 
 from components import render_risk_matrix, render_checklist_table
+
+
+def validate_safe_path(user_path: str, base_dir: Optional[Path] = None) -> Optional[Path]:
+    """
+    Validate that user-provided path is safe and within allowed directory.
+
+    Args:
+        user_path: User-provided path string
+        base_dir: Base directory to restrict access (default: cwd)
+
+    Returns:
+        Validated Path object or None if invalid/unsafe
+    """
+    if not user_path:
+        return None
+
+    try:
+        path = Path(user_path).resolve()
+
+        # If base_dir specified, ensure path is within it
+        if base_dir:
+            base = base_dir.resolve()
+            try:
+                path.relative_to(base)
+            except ValueError:
+                # Path is outside base_dir
+                st.error(f"⚠️ Path must be within {base_dir}")
+                return None
+
+        # Additional safety: prevent accessing system directories
+        str_path = str(path)
+        dangerous_paths = ['/etc', '/sys', '/proc', 'C:\\Windows', 'C:\\System32']
+        for dangerous in dangerous_paths:
+            if str_path.startswith(dangerous):
+                st.error("⚠️ Access to system directories is not allowed")
+                return None
+
+        return path
+
+    except (ValueError, RuntimeError, OSError) as e:
+        st.error(f"⚠️ Invalid path: {e}")
+        return None
+
 
 # Page configuration
 st.set_page_config(
@@ -92,9 +137,9 @@ def main():
         )
 
         if uploaded_file:
-            # Save to temp location
-            temp_dir = Path("/tmp/raicb")
-            temp_dir.mkdir(exist_ok=True)
+            # Save to temp location (cross-platform compatible)
+            temp_dir = Path(tempfile.gettempdir()) / "raicb"
+            temp_dir.mkdir(parents=True, exist_ok=True)
             config_path = temp_dir / "raicb.yaml"
             config_path.write_bytes(uploaded_file.getvalue())
             project_root = temp_dir
@@ -108,9 +153,13 @@ def main():
         )
 
         if default_path:
-            config_path = Path(default_path)
-            if config_path.exists():
+            # Validate path for security
+            config_path = validate_safe_path(default_path, base_dir=Path.cwd())
+            if config_path and config_path.exists():
                 project_root = config_path.parent
+            elif config_path:
+                st.sidebar.error(f"Configuration file not found: {config_path}")
+                config_path = None
 
     # Environment selection
     environment = st.sidebar.selectbox(
@@ -302,7 +351,12 @@ def main():
                     if st.button("📄 Generate Reports", type="primary"):
                         with st.spinner("Generating reports..."):
                             try:
-                                output_path = Path(output_dir)
+                                # Validate output directory for security
+                                output_path = validate_safe_path(output_dir, base_dir=Path.cwd())
+                                if not output_path:
+                                    st.error("Invalid output directory")
+                                    raise ValueError("Invalid output directory")
+
                                 generated_files = generate_report(report, output_path, formats)
 
                                 st.success(f"✓ Generated {len(generated_files)} report(s)")

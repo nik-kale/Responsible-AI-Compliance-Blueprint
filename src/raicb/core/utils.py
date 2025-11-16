@@ -2,8 +2,57 @@
 
 import hashlib
 import re
+from functools import wraps
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
+
+from .logger import get_logger
+
+# Security limits
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB max file size for reading
+MAX_LINE_LENGTH = 10000  # Max characters per line to prevent memory issues
+
+logger = get_logger(__name__)
+
+
+def safe_check(func: Callable) -> Callable:
+    """
+    Decorator to safely execute check functions with error handling.
+
+    Catches exceptions and converts them to ERROR findings instead of crashing.
+
+    Args:
+        func: Check function to wrap
+
+    Returns:
+        Wrapped function that handles errors gracefully
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
+
+            # Import here to avoid circular imports
+            from ..config.schema import Finding, Severity, Status
+
+            return [
+                Finding(
+                    check_id=f"ERROR-{func.__module__}.{func.__name__}",
+                    title=f"Check Error: {func.__name__}",
+                    severity=Severity.HIGH,
+                    status=Status.ERROR,
+                    category="system",
+                    description=f"Error executing check function: {func.__name__}",
+                    evidence=f"Exception: {type(e).__name__}: {str(e)}",
+                    remediation="Check logs for details. This may indicate a bug or configuration issue.",
+                    owasp_mapping=[],
+                    iso_mapping=[],
+                )
+            ]
+
+    return wrapper
 
 
 def compute_file_hash(file_path: Path, algorithm: str = "sha256") -> str:
@@ -112,10 +161,17 @@ def scan_file_for_pii(
     Returns:
         Dictionary with findings
     """
-    from typing import Any
-
     if not file_path.exists():
         return {"error": f"File not found: {file_path}"}
+
+    # Check file size to prevent DoS
+    file_size = file_path.stat().st_size
+    if file_size > MAX_FILE_SIZE:
+        return {
+            "error": f"File too large: {file_size} bytes (max: {MAX_FILE_SIZE})",
+            "file": str(file_path),
+            "file_size": file_size,
+        }
 
     findings: Dict[str, Any] = {
         "file": str(file_path),
@@ -130,6 +186,9 @@ def scan_file_for_pii(
             for i, line in enumerate(f):
                 if i >= max_lines:
                     break
+                # Also limit individual line length
+                if len(line) > MAX_LINE_LENGTH:
+                    line = line[:MAX_LINE_LENGTH] + "...[truncated]"
                 lines.append(line)
 
             findings["lines_scanned"] = len(lines)
@@ -217,16 +276,38 @@ def check_dangerous_patterns(file_path: Path) -> List[Dict[str, str]]:
         List of findings
     """
     dangerous_patterns = [
-        (r"password\s*=\s*['\"].*['\"]", "Hardcoded password"),
-        (r"api[_-]?key\s*=\s*['\"].*['\"]", "Hardcoded API key"),
-        (r"secret\s*=\s*['\"].*['\"]", "Hardcoded secret"),
-        (r"token\s*=\s*['\"].*['\"]", "Hardcoded token"),
-        (r"pickle\.load", "Unsafe pickle deserialization"),
-        (r"eval\(", "Dangerous eval usage"),
-        (r"exec\(", "Dangerous exec usage"),
+        # Match secrets with or without quotes, but not in comments
+        (r"^\s*[^#]*password\s*[:=]\s*['\"]?[^\s'\"#]+['\"]?", "Hardcoded password"),
+        (r"^\s*[^#]*api[_-]?key\s*[:=]\s*['\"]?[^\s'\"#]+['\"]?", "Hardcoded API key"),
+        (r"^\s*[^#]*secret\s*[:=]\s*['\"]?[^\s'\"#]+['\"]?", "Hardcoded secret"),
+        (r"^\s*[^#]*token\s*[:=]\s*['\"]?[^\s'\"#]+['\"]?", "Hardcoded token"),
+        # Specific secret patterns
+        (r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
+        (r"(?:r|s)k_live_[0-9a-zA-Z]{24,}", "Stripe API Key"),
+        (r"sk-[a-zA-Z0-9]{20,}", "OpenAI API Key"),
+        (r"ghp_[a-zA-Z0-9]{36}", "GitHub Personal Access Token"),
+        (r"gho_[a-zA-Z0-9]{36}", "GitHub OAuth Token"),
+        # Unsafe operations (not in comments)
+        (r"^\s*[^#]*pickle\.load", "Unsafe pickle deserialization"),
+        (r"^\s*[^#]*\beval\s*\(", "Dangerous eval usage"),
+        (r"^\s*[^#]*\bexec\s*\(", "Dangerous exec usage"),
+        (r"^\s*[^#]*shell\s*=\s*True", "Unsafe shell=True in subprocess"),
     ]
 
     findings = []
+
+    # Check file size to prevent DoS
+    try:
+        file_size = file_path.stat().st_size
+        if file_size > MAX_FILE_SIZE:
+            findings.append({
+                "error": f"File too large: {file_size} bytes",
+                "file": str(file_path),
+            })
+            return findings
+    except Exception as e:
+        findings.append({"error": str(e), "file": str(file_path)})
+        return findings
 
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
