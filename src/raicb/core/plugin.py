@@ -84,10 +84,21 @@ class PluginManager:
         Returns:
             Plugin instance or None if loading failed
         """
+        # Security: Validate plugin path is within plugin directory
+        try:
+            resolved_plugin = plugin_path.resolve()
+            resolved_dir = self.plugin_dir.resolve()
+
+            # Ensure plugin is actually within the plugin directory
+            resolved_plugin.relative_to(resolved_dir)
+        except (ValueError, RuntimeError) as e:
+            logger.error(f"Security: Plugin path outside plugin directory: {plugin_path}")
+            return None
+
         module_name = f"raicb_plugin_{plugin_path.stem}"
 
         # Load module from file
-        spec = importlib.util.spec_from_file_location(module_name, plugin_path)
+        spec = importlib.util.spec_from_file_location(module_name, resolved_plugin)
         if not spec or not spec.loader:
             logger.error(f"Failed to load spec for {plugin_path}")
             return None

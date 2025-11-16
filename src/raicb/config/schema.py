@@ -322,3 +322,7 @@ class AssessmentReport(BaseModel):
     passed_checks: int = Field(0, description="Passed checks")
     failed_checks: int = Field(0, description="Failed checks")
     warnings: int = Field(0, description="Warnings")
+
+
+# Rebuild model to resolve forward references (Pydantic v2)
+AssessmentReport.model_rebuild()

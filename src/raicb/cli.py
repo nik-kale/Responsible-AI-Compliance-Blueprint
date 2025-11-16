@@ -475,13 +475,7 @@ def baseline_compare(
     try:
         baseline_obj = Baseline(baseline_file)
 
-        # Load report
-        import json
-        with open(report) as f:
-            from .config.schema import AssessmentReport
-            report_data = json.load(f)
-            # Note: Would need proper deserialization here
-
+        # Compare report file against baseline
         comparison = baseline_obj.compare_file(report)
 
         # Display results
@@ -622,10 +616,18 @@ def fix(
     try:
         import json
         from .config.schema import Finding
+        from pydantic import ValidationError
 
         with open(report) as f:
             report_data = json.load(f)
-            findings = [Finding(**f) for f in report_data.get("findings", [])]
+
+        # Deserialize findings with validation error handling
+        findings = []
+        for i, finding_dict in enumerate(report_data.get("findings", [])):
+            try:
+                findings.append(Finding(**finding_dict))
+            except ValidationError as e:
+                console.print(f"[yellow]Warning: Skipping invalid finding {i}: {e.errors()[0]['msg']}[/yellow]")
 
         wizard = RemediationWizard(project_root)
 

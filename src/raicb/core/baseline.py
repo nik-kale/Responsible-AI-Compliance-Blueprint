@@ -253,8 +253,13 @@ class Baseline:
 
             # Reconstruct AssessmentReport from JSON
             from ..config.schema import AssessmentReport
+            from pydantic import ValidationError
 
-            report = AssessmentReport(**report_data)
+            try:
+                report = AssessmentReport(**report_data)
+            except ValidationError as e:
+                logger.error(f"Invalid assessment report structure: {e}")
+                raise ValueError(f"Report validation failed: {e.errors()[0]['msg']}")
 
             # Create baseline using the existing method
             self.create(report)
@@ -264,6 +269,8 @@ class Baseline:
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in report file: {e}")
             raise
+        except ValueError:
+            raise  # Re-raise validation errors as-is
         except Exception as e:
             logger.error(f"Failed to create baseline from file: {e}", exc_info=True)
             raise
@@ -291,8 +298,13 @@ class Baseline:
 
             # Reconstruct AssessmentReport from JSON
             from ..config.schema import AssessmentReport
+            from pydantic import ValidationError
 
-            report = AssessmentReport(**report_data)
+            try:
+                report = AssessmentReport(**report_data)
+            except ValidationError as e:
+                logger.error(f"Invalid assessment report structure: {e}")
+                raise ValueError(f"Report validation failed: {e.errors()[0]['msg']}")
 
             # Compare using the existing method
             return self.compare(report)
@@ -300,6 +312,8 @@ class Baseline:
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in report file: {e}")
             raise
+        except ValueError:
+            raise  # Re-raise validation errors as-is
         except Exception as e:
             logger.error(f"Failed to compare with baseline: {e}", exc_info=True)
             raise

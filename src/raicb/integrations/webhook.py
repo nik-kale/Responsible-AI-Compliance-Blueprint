@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from ..config.schema import AssessmentReport, Finding, Severity, Status
@@ -31,7 +32,18 @@ class WebhookIntegration:
             headers: Optional custom headers (e.g., authentication)
             timeout: Request timeout in seconds
             retry_count: Number of retries on failure
+
+        Raises:
+            ValueError: If URL scheme is not http or https
         """
+        # Validate URL scheme for security
+        parsed_url = urlparse(url)
+        if parsed_url.scheme not in ('http', 'https'):
+            raise ValueError(
+                f"Invalid URL scheme: {parsed_url.scheme}. "
+                "Only http and https are allowed for security reasons."
+            )
+
         self.url = url
         self.headers = headers or {}
         self.timeout = timeout

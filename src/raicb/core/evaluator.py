@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -58,13 +58,17 @@ def run_all_checks(
     """
     # Check cache first if enabled
     cache = None
-    if use_cache and config_path:
-        cache = CheckCache()
-        cached_report = cache.get(config_path, env)
-        if cached_report is not None:
+    if use_cache:
+        if config_path:
+            cache = CheckCache()
+            cached_report = cache.get(config_path, env)
+            if cached_report is not None:
+                if verbose:
+                    console.print("[green]✓ Using cached assessment results[/green]")
+                return cached_report
+        else:
             if verbose:
-                console.print("[green]✓ Using cached assessment results[/green]")
-            return cached_report
+                console.print("[yellow]⚠ Caching enabled but config_path not provided - caching disabled[/yellow]")
 
     all_findings: List[Finding] = []
 
@@ -122,26 +126,26 @@ def run_all_checks(
 
             progress.remove_task(task)
 
-    # Run custom plugins if directory provided
-    if plugins_dir and plugins_dir.exists():
-        task = progress.add_task("Running custom plugins...", total=None)
-        try:
-            plugin_manager = PluginManager(plugins_dir)
-            plugin_count = plugin_manager.discover_plugins()
+        # Run custom plugins if directory provided
+        if plugins_dir and plugins_dir.exists():
+            task = progress.add_task("Running custom plugins...", total=None)
+            try:
+                plugin_manager = PluginManager(plugins_dir)
+                plugin_count = plugin_manager.discover_plugins()
 
-            if plugin_count > 0:
-                plugin_findings = plugin_manager.run_all_plugins(config, project_root, env)
-                all_findings.extend(plugin_findings)
+                if plugin_count > 0:
+                    plugin_findings = plugin_manager.run_all_plugins(config, project_root, env)
+                    all_findings.extend(plugin_findings)
 
-                if verbose:
-                    console.print(
-                        f"  Plugins: {plugin_count} plugin(s) "
-                        f"returned {len(plugin_findings)} findings"
-                    )
-        except Exception as e:
-            console.print(f"  [yellow]Warning: Plugin execution failed: {str(e)}[/yellow]")
+                    if verbose:
+                        console.print(
+                            f"  Plugins: {plugin_count} plugin(s) "
+                            f"returned {len(plugin_findings)} findings"
+                        )
+            except Exception as e:
+                console.print(f"  [yellow]Warning: Plugin execution failed: {str(e)}[/yellow]")
 
-        progress.remove_task(task)
+            progress.remove_task(task)
 
     # Generate summary statistics
     summary = _generate_summary(all_findings)
