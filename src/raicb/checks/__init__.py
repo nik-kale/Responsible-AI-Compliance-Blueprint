@@ -8,6 +8,9 @@ from . import (
     inference_security,
     logging_audit,
     governance,
+    impact_assessment,
+    plugin_security,
+    model_security,
 )
 
 __all__ = [
@@ -18,4 +21,7 @@ __all__ = [
     "inference_security",
     "logging_audit",
     "governance",
+    "impact_assessment",
+    "plugin_security",
+    "model_security",
 ]

@@ -24,6 +24,9 @@ from ..checks import (
     inference_security,
     logging_audit,
     governance,
+    impact_assessment,
+    plugin_security,
+    model_security,
 )
 from . import mapping
 from .cache import CheckCache
@@ -81,6 +84,9 @@ def run_all_checks(
         ("Inference Security", inference_security),
         ("Logging & Audit", logging_audit),
         ("Governance", governance),
+        ("Impact Assessment", impact_assessment),
+        ("Plugin Security", plugin_security),
+        ("Model Security", model_security),
     ]
 
     if verbose:
