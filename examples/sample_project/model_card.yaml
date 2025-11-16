@@ -1,0 +1,66 @@
+# Model Card for Sentiment Analysis Model
+
+model_name: "DistilBERT Sentiment Classifier"
+version: "2.1.0"
+description: "Fine-tuned DistilBERT model for binary sentiment classification of customer feedback"
+architecture: "DistilBERT (distilbert-base-uncased)"
+framework: "PyTorch 2.0.1"
+
+# Training Information
+training_data: "Customer feedback dataset (100K samples, balanced positive/negative)"
+training_date: "2024-01-05"
+training_metrics:
+  accuracy: 0.94
+  precision: 0.93
+  recall: 0.95
+  f1_score: 0.94
+  auc_roc: 0.97
+
+# Evaluation
+evaluation_data: "Held-out test set (10K samples)"
+evaluation_metrics:
+  accuracy: 0.93
+  precision: 0.92
+  recall: 0.94
+  f1_score: 0.93
+  auc_roc: 0.96
+
+# Usage
+intended_use: |
+  This model is intended for analyzing sentiment in customer feedback for
+  e-commerce applications. It classifies text as positive or negative sentiment.
+  Suitable for English language text up to 512 tokens.
+
+out_of_scope_use: |
+  - Not suitable for non-English text
+  - Not designed for multi-class sentiment (e.g., neutral, mixed)
+  - Should not be used for medical, legal, or safety-critical decisions
+  - Not appropriate for analyzing sensitive personal communications
+
+limitations: |
+  - Performance degrades on domain-specific jargon or slang
+  - May exhibit bias toward common product categories in training data
+  - Limited context window (512 tokens) may miss important context in longer texts
+  - Performance varies across demographic groups (see bias analysis)
+
+bias_considerations: |
+  Bias testing revealed:
+  - 2% higher accuracy on product reviews vs service feedback
+  - Slightly lower recall (91%) on feedback from non-native English speakers
+  - Performance parity across gender and age demographics
+  Mitigation: Regular monitoring and dataset augmentation planned for Q2 2024
+
+# Provenance
+authors:
+  - "ML Engineering Team, Example Corp"
+  - "Based on DistilBERT by HuggingFace"
+
+license: "Apache 2.0"
+
+citation: |
+  @model{sentiment-classifier-2024,
+    author = {ML Engineering Team},
+    title = {DistilBERT Sentiment Classifier},
+    year = {2024},
+    version = {2.1.0}
+  }

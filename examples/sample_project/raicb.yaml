@@ -1,0 +1,358 @@
+# Responsible AI Compliance Blueprint - Sample Configuration
+# This is an example configuration file for a sentiment analysis AI system
+
+project:
+  name: "Sentiment Analysis API"
+  version: "2.1.0"
+  description: "Production sentiment analysis service for customer feedback"
+  owners:
+    - name: "ML Engineering Team"
+      email: "ml-eng@example.com"
+      role: "Development & Operations"
+    - name: "AI Governance Team"
+      email: "ai-governance@example.com"
+      role: "Compliance & Risk Management"
+  contacts:
+    - name: "Security Operations Center"
+      email: "soc@example.com"
+      role: "Incident Response"
+  created: "2023-06-15"
+  updated: "2024-01-20"
+
+artifacts:
+  model_path: "./artifacts/model.pt"
+  model_card: "./model_card.yaml"
+  tokenizer: "./artifacts/tokenizer.json"
+  preprocessor: "./artifacts/preprocessor.py"
+  datasets:
+    training: "./data/training_set.csv"
+    validation: "./data/validation_set.csv"
+    test: "./data/test_set.csv"
+  dependencies: "./requirements.txt"
+  checksums: "./checksums.txt"
+
+policies:
+  risk_management: "./governance/risk_management_policy.md"
+  incident_response: "./governance/incident_response_plan.md"
+  model_lifecycle: "./governance/model_lifecycle_policy.md"
+  data_governance: "./governance/data_governance_policy.md"
+  ethics: "./governance/ai_ethics_policy.md"
+  privacy: "./governance/privacy_policy.md"
+  security: "./governance/security_policy.md"
+
+# Risk Register
+threats:
+  - id: "THREAT-001"
+    title: "Training Data Poisoning"
+    description: "Adversary manipulates training data to inject bias or backdoors"
+    likelihood: "medium"
+    impact: "high"
+    category: "Data Integrity"
+    controls: ["CTRL-001", "CTRL-002"]
+    owasp_mapping: ["LLM03"]
+    iso_mapping: ["Clause_6.1", "Clause_8"]
+    residual_risk: "low"
+    owner: "ML Engineering Team"
+
+  - id: "THREAT-002"
+    title: "Model Inversion Attack"
+    description: "Attacker extracts sensitive training data through API queries"
+    likelihood: "low"
+    impact: "critical"
+    category: "Privacy"
+    controls: ["CTRL-005", "CTRL-006", "CTRL-007"]
+    owasp_mapping: ["LLM06", "LLM10"]
+    iso_mapping: ["Clause_6.1", "Clause_8"]
+    residual_risk: "low"
+    owner: "Security Team"
+
+  - id: "THREAT-003"
+    title: "Prompt Injection via Input Manipulation"
+    description: "User crafts malicious inputs to manipulate model behavior"
+    likelihood: "high"
+    impact: "medium"
+    category: "Input Security"
+    controls: ["CTRL-008", "CTRL-009", "CTRL-010"]
+    owasp_mapping: ["LLM01"]
+    iso_mapping: ["Clause_8"]
+    residual_risk: "medium"
+    owner: "ML Engineering Team"
+
+  - id: "THREAT-004"
+    title: "Dependency Vulnerabilities"
+    description: "Vulnerable third-party libraries introduce security risks"
+    likelihood: "medium"
+    impact: "high"
+    category: "Supply Chain"
+    controls: ["CTRL-003", "CTRL-004"]
+    owasp_mapping: ["LLM05"]
+    iso_mapping: ["Clause_6.1"]
+    residual_risk: "low"
+    owner: "DevSecOps Team"
+
+  - id: "THREAT-005"
+    title: "Model Denial of Service"
+    description: "Resource exhaustion through excessive or complex queries"
+    likelihood: "medium"
+    impact: "medium"
+    category: "Availability"
+    controls: ["CTRL-011", "CTRL-012"]
+    owasp_mapping: ["LLM04"]
+    iso_mapping: ["Clause_8"]
+    residual_risk: "low"
+    owner: "Infrastructure Team"
+
+  - id: "THREAT-006"
+    title: "PII Leakage in Logs"
+    description: "Personally identifiable information inadvertently logged"
+    likelihood: "medium"
+    impact: "high"
+    category: "Privacy"
+    controls: ["CTRL-013", "CTRL-014"]
+    owasp_mapping: ["LLM06"]
+    iso_mapping: ["Clause_8", "Clause_9"]
+    residual_risk: "low"
+    owner: "Privacy Team"
+
+  - id: "THREAT-007"
+    title: "Insufficient Model Governance"
+    description: "Lack of oversight and accountability for model decisions"
+    likelihood: "low"
+    impact: "medium"
+    category: "Governance"
+    controls: ["CTRL-015", "CTRL-016", "CTRL-017"]
+    owasp_mapping: ["LLM08", "LLM09"]
+    iso_mapping: ["Clause_5", "Clause_9"]
+    residual_risk: "low"
+    owner: "AI Governance Team"
+
+# Security Controls
+controls:
+  - id: "CTRL-001"
+    title: "Dataset Hash Verification"
+    description: "SHA256 checksums for all training datasets"
+    implemented: true
+    evidence: "./checksums.txt"
+    effectiveness: "high"
+    owner: "ML Engineering Team"
+    last_reviewed: "2024-01-15"
+
+  - id: "CTRL-002"
+    title: "Data Provenance Tracking"
+    description: "Documented source and lineage for all training data"
+    implemented: true
+    evidence: "./governance/data_provenance.md"
+    effectiveness: "high"
+    owner: "Data Team"
+    last_reviewed: "2024-01-10"
+
+  - id: "CTRL-003"
+    title: "Automated Dependency Scanning"
+    description: "Weekly pip-audit scans in CI/CD pipeline"
+    implemented: true
+    evidence: "./.github/workflows/security.yml"
+    effectiveness: "high"
+    owner: "DevSecOps Team"
+    last_reviewed: "2024-01-20"
+
+  - id: "CTRL-004"
+    title: "Dependency Pinning"
+    description: "Exact version pinning in requirements.txt"
+    implemented: true
+    evidence: "./requirements.txt"
+    effectiveness: "medium"
+    owner: "ML Engineering Team"
+    last_reviewed: "2024-01-18"
+
+  - id: "CTRL-005"
+    title: "API Authentication"
+    description: "OAuth 2.0 authentication for all API endpoints"
+    implemented: true
+    evidence: "API documentation"
+    effectiveness: "high"
+    owner: "Backend Team"
+    last_reviewed: "2024-01-12"
+
+  - id: "CTRL-006"
+    title: "TLS Encryption"
+    description: "TLS 1.3 for all API communications"
+    implemented: true
+    evidence: "Infrastructure config"
+    effectiveness: "high"
+    owner: "Infrastructure Team"
+    last_reviewed: "2024-01-08"
+
+  - id: "CTRL-007"
+    title: "Output Filtering"
+    description: "Confidence thresholds and response sanitization"
+    implemented: true
+    evidence: "./src/api/filters.py"
+    effectiveness: "medium"
+    owner: "ML Engineering Team"
+    last_reviewed: "2024-01-14"
+
+  - id: "CTRL-008"
+    title: "Input Validation"
+    description: "Length limits and content filtering on inputs"
+    implemented: true
+    evidence: "./src/api/validators.py"
+    effectiveness: "high"
+    owner: "Backend Team"
+    last_reviewed: "2024-01-16"
+
+  - id: "CTRL-009"
+    title: "Input Size Limits"
+    description: "Maximum 1000 characters per request"
+    implemented: true
+    evidence: "API configuration"
+    effectiveness: "medium"
+    owner: "Backend Team"
+    last_reviewed: "2024-01-16"
+
+  - id: "CTRL-010"
+    title: "Prompt Template Hardening"
+    description: "Fixed templates with parameter injection controls"
+    implemented: true
+    evidence: "./src/prompts/templates.py"
+    effectiveness: "high"
+    owner: "ML Engineering Team"
+    last_reviewed: "2024-01-11"
+
+  - id: "CTRL-011"
+    title: "Rate Limiting"
+    description: "100 requests/minute per API key"
+    implemented: true
+    evidence: "API Gateway configuration"
+    effectiveness: "high"
+    owner: "Infrastructure Team"
+    last_reviewed: "2024-01-09"
+
+  - id: "CTRL-012"
+    title: "Request Timeout"
+    description: "30 second timeout for inference requests"
+    implemented: true
+    evidence: "Service configuration"
+    effectiveness: "medium"
+    owner: "Backend Team"
+    last_reviewed: "2024-01-13"
+
+  - id: "CTRL-013"
+    title: "Log Sanitization"
+    description: "PII detection and redaction in logs"
+    implemented: true
+    evidence: "./src/logging/sanitizer.py"
+    effectiveness: "high"
+    owner: "Security Team"
+    last_reviewed: "2024-01-17"
+
+  - id: "CTRL-014"
+    title: "Audit Logging"
+    description: "Comprehensive audit trail for all API requests"
+    implemented: true
+    evidence: "./logs/"
+    effectiveness: "high"
+    owner: "Security Team"
+    last_reviewed: "2024-01-19"
+
+  - id: "CTRL-015"
+    title: "Model Card Documentation"
+    description: "Comprehensive model card with use cases and limitations"
+    implemented: true
+    evidence: "./model_card.yaml"
+    effectiveness: "high"
+    owner: "ML Engineering Team"
+    last_reviewed: "2024-01-10"
+
+  - id: "CTRL-016"
+    title: "Regular Model Reviews"
+    description: "Quarterly reviews of model performance and bias"
+    implemented: true
+    evidence: "Review meeting notes"
+    effectiveness: "medium"
+    owner: "AI Governance Team"
+    last_reviewed: "2024-01-05"
+
+  - id: "CTRL-017"
+    title: "Change Control Process"
+    description: "Formal approval required for model updates"
+    implemented: true
+    evidence: "./governance/change_control.md"
+    effectiveness: "high"
+    owner: "AI Governance Team"
+    last_reviewed: "2023-12-20"
+
+# Environment Configurations
+environments:
+  dev:
+    name: "development"
+    description: "Development and testing environment"
+    tls_required: false
+    auth_required: false
+    rate_limiting: false
+    input_validation: true
+    network_isolation: false
+    secrets_management: "environment_variables"
+    logging_enabled: true
+    monitoring_enabled: false
+    max_input_size: 5000
+    max_tokens: 512
+    timeout_seconds: 60
+
+  stage:
+    name: "staging"
+    description: "Pre-production staging environment"
+    tls_required: true
+    auth_required: true
+    rate_limiting: true
+    input_validation: true
+    network_isolation: true
+    secrets_management: "aws_secrets_manager"
+    logging_enabled: true
+    monitoring_enabled: true
+    max_input_size: 1000
+    max_tokens: 256
+    timeout_seconds: 30
+    content_security_policy: "default-src 'self'"
+    cors_allowed_origins: ["https://staging.example.com"]
+
+  prod:
+    name: "production"
+    description: "Production environment"
+    tls_required: true
+    auth_required: true
+    rate_limiting: true
+    input_validation: true
+    network_isolation: true
+    secrets_management: "aws_secrets_manager"
+    logging_enabled: true
+    monitoring_enabled: true
+    max_input_size: 1000
+    max_tokens: 256
+    timeout_seconds: 30
+    content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-inline'"
+    cors_allowed_origins: ["https://app.example.com"]
+    additional_headers:
+      X-Frame-Options: "DENY"
+      X-Content-Type-Options: "nosniff"
+      Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+
+# PII Configuration
+pii_config:
+  scan_enabled: true
+  scan_logs: true
+  scan_samples: 100
+  redaction_enabled: true
+  patterns:
+    - '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'  # Email
+    - '\b\d{3}-\d{2}-\d{4}\b'  # SSN
+    - '\b\d{16}\b'  # Credit card
+    - '\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b'  # Phone
+
+# Assessment Metadata
+compliance_frameworks:
+  - "OWASP AI Security Top 10"
+  - "ISO/IEC 42001:2023"
+  - "NIST AI RMF"
+
+assessment_date: "2024-01-20"
+assessor: "AI Governance Team"

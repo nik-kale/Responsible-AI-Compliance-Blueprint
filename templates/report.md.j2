@@ -1,0 +1,185 @@
+# AI Compliance Assessment Report
+
+**Project:** {{ report.project_name }}
+**Version:** {{ report.version }}
+**Environment:** {{ report.environment }}
+**Assessment Date:** {{ report.assessment_date[:10] }}
+{% if report.assessor %}**Assessor:** {{ report.assessor }}{% endif %}
+
+---
+
+## Executive Summary
+
+This report presents the results of a compliance assessment against **OWASP AI Security** and **ISO/IEC 42001** concepts.
+
+**⚠️ DISCLAIMER:** This tool does NOT provide official certification. Results are best-effort mappings to help identify security and governance gaps.
+
+### Assessment Results
+
+- **Total Checks:** {{ report.total_checks }}
+- **Passed:** {{ report.passed_checks }} ✓
+- **Failed:** {{ report.failed_checks }} ✗
+- **Warnings:** {{ report.warnings }} ⚠
+
+### By Severity
+
+{% for severity, findings in findings_by_severity.items() if findings|length > 0 %}
+- **{{ severity|title }}:** {{ findings|length }}
+{% endfor %}
+
+{% if critical_findings|length > 0 %}
+### ⚠️ CRITICAL FINDINGS
+
+**{{ critical_findings|length }} critical issue(s) require immediate attention:**
+
+{% for finding in critical_findings %}
+- **{{ finding.title }}** ({{ finding.check_id }})
+  - Category: {{ finding.category }}
+  - Evidence: {{ finding.evidence }}
+  - Remediation: {{ finding.remediation }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Findings by Category
+
+{% for category, findings in findings_by_category.items() %}
+### {{ category|title|replace('_', ' ') }}
+
+{% for finding in findings %}
+#### {{ finding.status_icon|default('•') }} {{ finding.title }} `{{ finding.check_id }}`
+
+- **Status:** {{ finding.status.value|upper }}
+- **Severity:** {{ finding.severity.value|upper }}
+- **Description:** {{ finding.description }}
+- **Evidence:** {{ finding.evidence or 'N/A' }}
+- **Remediation:** {{ finding.remediation or 'N/A' }}
+{% if finding.owasp_mapping %}
+- **OWASP Mapping:** {{ finding.owasp_mapping|join(', ') }}
+{% endif %}
+{% if finding.iso_mapping %}
+- **ISO/IEC 42001 Mapping:** {{ finding.iso_mapping|join(', ') }}
+{% endif %}
+
+{% endfor %}
+{% endfor %}
+
+---
+
+## Risk Matrix
+
+{% if report.risk_matrix.total_threats > 0 %}
+**Total Threats:** {{ report.risk_matrix.total_threats }}
+**High Risk Threats:** {{ report.risk_matrix.high_risk_count }}
+
+### Threats by Risk Level
+
+{% for key, threats in report.risk_matrix.threats_by_risk.items() %}
+**{{ key|replace('_', ' ')|title }}:**
+{% for threat in threats %}
+- {{ threat.title }} ({{ threat.id }}) - Risk Score: {{ threat.risk_score }}
+{% endfor %}
+{% endfor %}
+{% else %}
+No threats documented in configuration.
+{% endif %}
+
+---
+
+## Framework Mappings
+
+### OWASP AI Security Top 10
+
+| ID | Name | Description |
+|----|------|-------------|
+{% for id, info in framework_mappings.owasp.items() %}
+| {{ id }} | {{ info.name }} | {{ info.description }} |
+{% endfor %}
+
+### ISO/IEC 42001 Clauses
+
+| Clause | Name | Description |
+|--------|------|-------------|
+{% for id, info in framework_mappings.iso.items() %}
+| {{ id }} | {{ info.name }} | {{ info.description }} |
+{% endfor %}
+
+### Check to Framework Mapping
+
+| Check Category | OWASP Mapping | ISO Mapping |
+|----------------|---------------|-------------|
+{% for mapping in framework_mappings.table %}
+| {{ mapping.check_category }} | {{ mapping.owasp }} | {{ mapping.iso }} |
+{% endfor %}
+
+---
+
+## Recommendations
+
+### Immediate Actions (Critical/High Severity)
+
+{% set urgent_findings = [] %}
+{% for finding in report.findings %}
+  {% if finding.status.value == 'fail' and finding.severity.value in ['critical', 'high'] %}
+    {% set _ = urgent_findings.append(finding) %}
+  {% endif %}
+{% endfor %}
+
+{% if urgent_findings|length > 0 %}
+{% for finding in urgent_findings %}
+{{ loop.index }}. **{{ finding.title }}**: {{ finding.remediation }}
+{% endfor %}
+{% else %}
+No urgent issues identified.
+{% endif %}
+
+### Medium Priority
+
+{% set medium_findings = [] %}
+{% for finding in report.findings %}
+  {% if finding.status.value in ['fail', 'warning'] and finding.severity.value == 'medium' %}
+    {% set _ = medium_findings.append(finding) %}
+  {% endif %}
+{% endfor %}
+
+{% if medium_findings|length > 0 %}
+{% for finding in medium_findings[:10] %}
+{{ loop.index }}. **{{ finding.title }}**: {{ finding.remediation }}
+{% endfor %}
+{% if medium_findings|length > 10 %}
+...and {{ medium_findings|length - 10 }} more. See detailed findings above.
+{% endif %}
+{% else %}
+No medium priority issues identified.
+{% endif %}
+
+---
+
+## Conclusion
+
+This assessment evaluated {{ report.total_checks }} compliance checks across 7 categories:
+- Data Integrity
+- Model Artifacts
+- Supply Chain Security
+- PII/Privacy
+- Inference Security
+- Logging & Audit
+- Governance
+
+**Pass Rate:** {{ (report.passed_checks / report.total_checks * 100)|round(1) }}%
+
+{% if report.failed_checks > 0 %}
+**Next Steps:**
+1. Review and address all CRITICAL findings immediately
+2. Plan remediation for HIGH severity issues
+3. Schedule fixes for MEDIUM and LOW priority items
+4. Re-run assessment after implementing fixes
+{% else %}
+**Status:** All checks passed. Continue monitoring and periodic reassessment.
+{% endif %}
+
+---
+
+**Report Generated:** {{ generated_at }}
+**Tool:** Responsible AI Compliance Blueprint v0.1.0

@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "truncation": {
+    "max_length": 512,
+    "strategy": "longest_first",
+    "direction": "right"
+  },
+  "padding": {
+    "strategy": "longest",
+    "direction": "right",
+    "pad_token": "[PAD]",
+    "pad_id": 0
+  },
+  "model": {
+    "type": "WordPiece",
+    "vocab_size": 30522,
+    "unk_token": "[UNK]"
+  },
+  "added_tokens": [
+    {"id": 0, "token": "[PAD]"},
+    {"id": 100, "token": "[UNK]"},
+    {"id": 101, "token": "[CLS]"},
+    {"id": 102, "token": "[SEP]"},
+    {"id": 103, "token": "[MASK]"}
+  ]
+}

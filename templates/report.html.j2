@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Compliance Report - {{ report.project_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background: #f9fafb;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #111827;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 0.5rem;
+        }
+
+        h2 {
+            color: #1f2937;
+            font-size: 1.875rem;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+        }
+
+        h3 {
+            color: #374151;
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        h4 {
+            color: #4b5563;
+            font-size: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .metadata {
+            background: #f3f4f6;
+            padding: 1.5rem;
+            border-radius: 6px;
+            margin-bottom: 2rem;
+        }
+
+        .metadata-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .disclaimer {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .summary-card {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .summary-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .summary-card-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .finding {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+
+        .finding-critical { border-left-color: #dc2626; }
+        .finding-high { border-left-color: #ea580c; }
+        .finding-medium { border-left-color: #d97706; }
+        .finding-low { border-left-color: #65a30d; }
+        .finding-info { border-left-color: #2563eb; }
+
+        .finding-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .finding-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 0.5rem;
+        }
+
+        .badge-critical { background: #fee2e2; color: #991b1b; }
+        .badge-high { background: #ffedd5; color: #9a3412; }
+        .badge-medium { background: #fef3c7; color: #92400e; }
+        .badge-low { background: #ecfccb; color: #365314; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+
+        .badge-pass { background: #d1fae5; color: #065f46; }
+        .badge-fail { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-skip { background: #f3f4f6; color: #374151; }
+
+        .finding-detail {
+            margin-bottom: 0.75rem;
+            color: #4b5563;
+        }
+
+        .finding-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th {
+            background: #f3f4f6;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #d1d5db;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .critical-banner {
+            background: #fef2f2;
+            border: 2px solid #dc2626;
+            padding: 1.5rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+        }
+
+        .critical-banner h3 {
+            color: #991b1b;
+            margin-top: 0;
+        }
+
+        code {
+            background: #f3f4f6;
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875em;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Compliance Assessment Report</h1>
+
+        <div class="metadata">
+            <div class="metadata-item">
+                <span class="metadata-label">Project:</span> {{ report.project_name }}
+            </div>
+            <div class="metadata-item">
+                <span class="metadata-label">Version:</span> {{ report.version }}
+            </div>
+            <div class="metadata-item">
+                <span class="metadata-label">Environment:</span> {{ report.environment }}
+            </div>
+            <div class="metadata-item">
+                <span class="metadata-label">Assessment Date:</span> {{ report.assessment_date[:10] }}
+            </div>
+            {% if report.assessor %}
+            <div class="metadata-item">
+                <span class="metadata-label">Assessor:</span> {{ report.assessor }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="disclaimer">
+            <strong>⚠️ DISCLAIMER:</strong> This tool does NOT provide official certification. Results are best-effort mappings to help identify security and governance gaps.
+        </div>
+
+        <h2>Executive Summary</h2>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-card-value">{{ report.total_checks }}</div>
+                <div class="summary-card-label">Total Checks</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-card-value" style="color: #059669;">{{ report.passed_checks }}</div>
+                <div class="summary-card-label">Passed ✓</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-card-value" style="color: #dc2626;">{{ report.failed_checks }}</div>
+                <div class="summary-card-label">Failed ✗</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-card-value" style="color: #d97706;">{{ report.warnings }}</div>
+                <div class="summary-card-label">Warnings ⚠</div>
+            </div>
+        </div>
+
+        <h3>By Severity</h3>
+        <div class="summary-grid">
+            {% for severity, findings in findings_by_severity.items() if findings|length > 0 %}
+            <div class="summary-card">
+                <div class="summary-card-value" style="color: {{ severity|severity_color }};">{{ findings|length }}</div>
+                <div class="summary-card-label">{{ severity|title }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if critical_findings|length > 0 %}
+        <div class="critical-banner">
+            <h3>⚠️ CRITICAL FINDINGS</h3>
+            <p><strong>{{ critical_findings|length }} critical issue(s) require immediate attention:</strong></p>
+            <ul style="margin-top: 1rem; margin-left: 1.5rem;">
+            {% for finding in critical_findings %}
+                <li style="margin-bottom: 0.5rem;">
+                    <strong>{{ finding.title }}</strong> ({{ finding.check_id }})
+                    <br>{{ finding.remediation }}
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <h2>Findings by Category</h2>
+
+        {% for category, findings in findings_by_category.items() %}
+        <h3>{{ category|title|replace('_', ' ') }}</h3>
+
+        {% for finding in findings %}
+        <div class="finding finding-{{ finding.severity.value }}">
+            <div class="finding-header">
+                <div>
+                    <div class="finding-title">
+                        {{ finding.status|status_icon }} {{ finding.title }}
+                        <code>{{ finding.check_id }}</code>
+                    </div>
+                </div>
+                <div>
+                    <span class="badge badge-{{ finding.status.value }}">{{ finding.status.value }}</span>
+                    <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value }}</span>
+                </div>
+            </div>
+
+            <div class="finding-detail">
+                <span class="finding-label">Description:</span> {{ finding.description }}
+            </div>
+
+            {% if finding.evidence %}
+            <div class="finding-detail">
+                <span class="finding-label">Evidence:</span> {{ finding.evidence }}
+            </div>
+            {% endif %}
+
+            <div class="finding-detail">
+                <span class="finding-label">Remediation:</span> {{ finding.remediation or 'N/A' }}
+            </div>
+
+            {% if finding.owasp_mapping %}
+            <div class="finding-detail">
+                <span class="finding-label">OWASP Mapping:</span> {{ finding.owasp_mapping|join(', ') }}
+            </div>
+            {% endif %}
+
+            {% if finding.iso_mapping %}
+            <div class="finding-detail">
+                <span class="finding-label">ISO/IEC 42001:</span> {{ finding.iso_mapping|join(', ') }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endfor %}
+
+        <h2>Framework Mappings</h2>
+
+        <h3>Check to Framework Mapping</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Check Category</th>
+                        <th>OWASP Mapping</th>
+                        <th>ISO Mapping</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in framework_mappings.table %}
+                    <tr>
+                        <td>{{ mapping.check_category }}</td>
+                        <td>{{ mapping.owasp }}</td>
+                        <td>{{ mapping.iso }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Conclusion</h2>
+        <p>
+            This assessment evaluated <strong>{{ report.total_checks }} compliance checks</strong> across 7 categories.
+            The overall pass rate is <strong>{{ (report.passed_checks / report.total_checks * 100)|round(1) }}%</strong>.
+        </p>
+
+        {% if report.failed_checks > 0 %}
+        <h3>Next Steps</h3>
+        <ol style="margin-left: 1.5rem;">
+            <li>Review and address all CRITICAL findings immediately</li>
+            <li>Plan remediation for HIGH severity issues</li>
+            <li>Schedule fixes for MEDIUM and LOW priority items</li>
+            <li>Re-run assessment after implementing fixes</li>
+        </ol>
+        {% else %}
+        <p><strong>Status:</strong> All checks passed. Continue monitoring and periodic reassessment.</p>
+        {% endif %}
+
+        <hr style="margin: 2rem 0; border: none; border-top: 1px solid #e5e7eb;">
+
+        <p style="color: #6b7280; font-size: 0.875rem;">
+            <strong>Report Generated:</strong> {{ generated_at }}<br>
+            <strong>Tool:</strong> Responsible AI Compliance Blueprint v0.1.0
+        </p>
+    </div>
+</body>
+</html>
