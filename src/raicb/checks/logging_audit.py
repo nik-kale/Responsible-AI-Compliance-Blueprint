@@ -5,6 +5,9 @@ from typing import List
 import os
 
 from ..config.schema import ProjectConfig, Finding, Severity, Status
+from ..core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_checks(config: ProjectConfig, project_root: Path, env: str) -> List[Finding]:

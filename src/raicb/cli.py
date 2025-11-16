@@ -218,7 +218,15 @@ def run(
 
     # Run checks
     try:
-        report = run_all_checks(project_config, project_root, env, verbose)
+        report = run_all_checks(
+            project_config,
+            project_root,
+            env,
+            verbose,
+            use_cache=cache,
+            config_path=config,
+            plugins_dir=Path("./plugins") if Path("./plugins").exists() else None,
+        )
     except Exception as e:
         console.print(f"[red]Error running checks: {e}[/red]")
         raise typer.Exit(1)
@@ -238,6 +246,10 @@ def run(
             sarif_exporter.export_report(report, sarif_path)
             generated_files.append(sarif_path)
             console.print(f"  ✓ {sarif_path}")
+
+        # Always generate JSON for baseline/fix commands
+        if "json" not in formats:
+            formats.append("json")
 
         # Generate standard reports
         if formats:
@@ -412,16 +424,7 @@ def map(
     console.print(table)
 
 
-@app.command()
-def baseline():
-    """
-    Manage baseline for CI/CD regression detection.
-    """
-    baseline_app = typer.Typer(help="Baseline management commands")
-    app.add_typer(baseline_app, name="baseline")
-
-
-@baseline.command("create")
+@app.command("baseline-create")
 def baseline_create(
     report: Path = typer.Argument(..., help="Path to assessment report JSON"),
     output: Path = typer.Option(
@@ -445,7 +448,7 @@ def baseline_create(
         raise typer.Exit(1)
 
 
-@baseline.command("compare")
+@app.command("baseline-compare")
 def baseline_compare(
     report: Path = typer.Argument(..., help="Path to current assessment report JSON"),
     baseline_file: Path = typer.Option(
@@ -495,16 +498,7 @@ def baseline_compare(
         raise typer.Exit(1)
 
 
-@app.command()
-def cache():
-    """
-    Manage check results cache.
-    """
-    cache_app = typer.Typer(help="Cache management commands")
-    app.add_typer(cache_app, name="cache")
-
-
-@cache.command("stats")
+@app.command("cache-stats")
 def cache_stats():
     """Show cache statistics."""
     try:
@@ -524,7 +518,7 @@ def cache_stats():
         raise typer.Exit(1)
 
 
-@cache.command("clear")
+@app.command("cache-clear")
 def cache_clear(
     older_than_days: Optional[int] = typer.Option(
         None,

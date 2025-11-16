@@ -156,6 +156,15 @@ class PluginManager:
 
         return all_findings
 
+    def get_plugins(self) -> List[ComplianceCheckPlugin]:
+        """
+        Get all loaded plugin instances.
+
+        Returns:
+            List of plugin instances
+        """
+        return self.plugins
+
     def list_plugins(self) -> List[dict]:
         """
         List all loaded plugins.

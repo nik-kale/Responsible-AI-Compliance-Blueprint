@@ -276,19 +276,48 @@ class Finding(BaseModel):
     references: List[str] = Field(default_factory=list, description="Reference URLs")
 
 
+class OWASPCoverage(BaseModel):
+    """OWASP AI Security coverage item."""
+
+    id: str = Field(..., description="OWASP ID (e.g., LLM01)")
+    title: str = Field(..., description="OWASP item title")
+    description: str = Field(..., description="OWASP item description")
+    related_checks: List[str] = Field(default_factory=list, description="Related check IDs")
+
+
+class ISOCoverage(BaseModel):
+    """ISO/IEC 42001 coverage item."""
+
+    clause: str = Field(..., description="ISO clause (e.g., Clause_6.1)")
+    title: str = Field(..., description="ISO clause title")
+    description: str = Field(..., description="ISO clause description")
+    related_checks: List[str] = Field(default_factory=list, description="Related check IDs")
+
+
 class AssessmentReport(BaseModel):
     """Complete assessment report."""
 
+    # Project information
     project_name: str = Field(..., description="Project name")
     version: str = Field(..., description="Project version")
     environment: str = Field(..., description="Environment assessed")
-    assessment_date: str = Field(..., description="Assessment date")
+    timestamp: str = Field(..., description="Assessment timestamp (ISO format)")
+    assessment_date: str = Field(..., description="Assessment date (deprecated, use timestamp)")
     assessor: Optional[str] = Field(None, description="Assessor name")
 
+    # Configuration reference
+    project_config: "ProjectConfig" = Field(..., description="Full project configuration")
+
+    # Findings and analysis
     findings: List[Finding] = Field(default_factory=list, description="All findings")
     summary: Dict[str, Any] = Field(default_factory=dict, description="Executive summary")
     risk_matrix: Dict[str, Any] = Field(default_factory=dict, description="Risk matrix data")
 
+    # Framework coverage
+    owasp_coverage: List[OWASPCoverage] = Field(default_factory=list, description="OWASP coverage")
+    iso_coverage: List[ISOCoverage] = Field(default_factory=list, description="ISO coverage")
+
+    # Statistics
     total_checks: int = Field(0, description="Total checks run")
     passed_checks: int = Field(0, description="Passed checks")
     failed_checks: int = Field(0, description="Failed checks")

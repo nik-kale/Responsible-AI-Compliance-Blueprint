@@ -9,6 +9,12 @@ from .schema import (
     Threat,
     Control,
     Environment,
+    Finding,
+    AssessmentReport,
+    OWASPCoverage,
+    ISOCoverage,
+    Severity,
+    Status,
 )
 
 __all__ = [
@@ -20,4 +26,10 @@ __all__ = [
     "Threat",
     "Control",
     "Environment",
+    "Finding",
+    "AssessmentReport",
+    "OWASPCoverage",
+    "ISOCoverage",
+    "Severity",
+    "Status",
 ]

@@ -232,3 +232,74 @@ class Baseline:
             return comparison["new_failures_count"] > 0
         else:
             return comparison["regression"]
+
+    def create_from_report_file(self, report_path: Path) -> None:
+        """
+        Create baseline from JSON report file.
+
+        Args:
+            report_path: Path to assessment JSON report
+
+        Raises:
+            FileNotFoundError: If report file doesn't exist
+            JSONDecodeError: If report file is invalid JSON
+        """
+        if not report_path.exists():
+            raise FileNotFoundError(f"Report file not found: {report_path}")
+
+        try:
+            with open(report_path, "r") as f:
+                report_data = json.load(f)
+
+            # Reconstruct AssessmentReport from JSON
+            from ..config.schema import AssessmentReport
+
+            report = AssessmentReport(**report_data)
+
+            # Create baseline using the existing method
+            self.create(report)
+
+            logger.info(f"Baseline created from {report_path}")
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in report file: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create baseline from file: {e}", exc_info=True)
+            raise
+
+    def compare_file(self, report_path: Path) -> Dict[str, Any]:
+        """
+        Compare assessment report file against baseline.
+
+        Args:
+            report_path: Path to current assessment JSON report
+
+        Returns:
+            Dictionary with comparison results
+
+        Raises:
+            FileNotFoundError: If report file doesn't exist
+            JSONDecodeError: If report file is invalid JSON
+        """
+        if not report_path.exists():
+            raise FileNotFoundError(f"Report file not found: {report_path}")
+
+        try:
+            with open(report_path, "r") as f:
+                report_data = json.load(f)
+
+            # Reconstruct AssessmentReport from JSON
+            from ..config.schema import AssessmentReport
+
+            report = AssessmentReport(**report_data)
+
+            # Compare using the existing method
+            return self.compare(report)
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in report file: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to compare with baseline: {e}", exc_info=True)
+            raise

@@ -6,6 +6,9 @@ from typing import List, Dict, Any
 from ..config.schema import ProjectConfig, Finding, Severity, Status
 from ..core.utils import compute_file_hash, load_checksums, verify_file_hash
 from ..core.loader import resolve_path
+from ..core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_checks(config: ProjectConfig, project_root: Path, env: str) -> List[Finding]:

@@ -11,6 +11,8 @@ from ..config.schema import (
     ProjectConfig,
     Finding,
     AssessmentReport,
+    OWASPCoverage,
+    ISOCoverage,
     Severity,
     Status,
 )
@@ -23,6 +25,9 @@ from ..checks import (
     logging_audit,
     governance,
 )
+from . import mapping
+from .cache import CheckCache
+from .plugin import PluginManager
 
 console = Console()
 
@@ -32,6 +37,9 @@ def run_all_checks(
     project_root: Path,
     env: str = "prod",
     verbose: bool = False,
+    use_cache: bool = False,
+    config_path: Optional[Path] = None,
+    plugins_dir: Optional[Path] = None,
 ) -> AssessmentReport:
     """
     Run all compliance checks and generate assessment report.
@@ -41,10 +49,23 @@ def run_all_checks(
         project_root: Project root directory
         env: Environment to check
         verbose: Enable verbose output
+        use_cache: Enable caching for faster subsequent runs
+        config_path: Path to config file (needed for cache key generation)
+        plugins_dir: Directory containing custom check plugins
 
     Returns:
         AssessmentReport with all findings
     """
+    # Check cache first if enabled
+    cache = None
+    if use_cache and config_path:
+        cache = CheckCache()
+        cached_report = cache.get(config_path, env)
+        if cached_report is not None:
+            if verbose:
+                console.print("[green]✓ Using cached assessment results[/green]")
+            return cached_report
+
     all_findings: List[Finding] = []
 
     # Define check modules
@@ -101,22 +122,54 @@ def run_all_checks(
 
             progress.remove_task(task)
 
+    # Run custom plugins if directory provided
+    if plugins_dir and plugins_dir.exists():
+        task = progress.add_task("Running custom plugins...", total=None)
+        try:
+            plugin_manager = PluginManager(plugins_dir)
+            plugin_count = plugin_manager.discover_plugins()
+
+            if plugin_count > 0:
+                plugin_findings = plugin_manager.run_all_plugins(config, project_root, env)
+                all_findings.extend(plugin_findings)
+
+                if verbose:
+                    console.print(
+                        f"  Plugins: {plugin_count} plugin(s) "
+                        f"returned {len(plugin_findings)} findings"
+                    )
+        except Exception as e:
+            console.print(f"  [yellow]Warning: Plugin execution failed: {str(e)}[/yellow]")
+
+        progress.remove_task(task)
+
     # Generate summary statistics
     summary = _generate_summary(all_findings)
 
     # Create risk matrix
     risk_matrix = _generate_risk_matrix(config)
 
+    # Generate framework coverage
+    owasp_coverage = _generate_owasp_coverage(all_findings)
+    iso_coverage = _generate_iso_coverage(all_findings)
+
+    # Create timestamp
+    timestamp = datetime.now().isoformat()
+
     # Create assessment report
     report = AssessmentReport(
         project_name=config.project.name,
         version=config.project.version,
         environment=env,
-        assessment_date=datetime.now().isoformat(),
+        timestamp=timestamp,
+        assessment_date=timestamp,  # For backward compatibility
         assessor=config.assessor,
+        project_config=config,
         findings=all_findings,
         summary=summary,
         risk_matrix=risk_matrix,
+        owasp_coverage=owasp_coverage,
+        iso_coverage=iso_coverage,
         total_checks=len(all_findings),
         passed_checks=summary["passed"],
         failed_checks=summary["failed"],
@@ -125,6 +178,12 @@ def run_all_checks(
 
     if verbose:
         _print_summary(summary)
+
+    # Cache the report if caching is enabled
+    if cache and config_path:
+        cache.set(config_path, env, report)
+        if verbose:
+            console.print("[green]✓ Assessment results cached[/green]")
 
     return report
 
@@ -288,3 +347,69 @@ def get_exit_code(report: AssessmentReport) -> int:
         return 3
     else:
         return 0
+
+
+def _generate_owasp_coverage(findings: List[Finding]) -> List[OWASPCoverage]:
+    """
+    Generate OWASP AI Security Top 10 coverage from findings.
+
+    Args:
+        findings: List of all findings
+
+    Returns:
+        List of OWASP coverage items with related check IDs
+    """
+    coverage = []
+
+    # Get all OWASP items that have related checks
+    for owasp_id, info in mapping.OWASP_MAPPING.items():
+        # Find findings that map to this OWASP item
+        related_checks = set()
+        for finding in findings:
+            if owasp_id in finding.owasp_mapping:
+                related_checks.add(finding.check_id)
+
+        # Always include all OWASP items for comprehensive coverage
+        coverage.append(
+            OWASPCoverage(
+                id=owasp_id,
+                title=info["name"],
+                description=info["description"],
+                related_checks=sorted(list(related_checks)),
+            )
+        )
+
+    return coverage
+
+
+def _generate_iso_coverage(findings: List[Finding]) -> List[ISOCoverage]:
+    """
+    Generate ISO/IEC 42001 coverage from findings.
+
+    Args:
+        findings: List of all findings
+
+    Returns:
+        List of ISO coverage items with related check IDs
+    """
+    coverage = []
+
+    # Get all ISO clauses that have related checks
+    for iso_clause, info in mapping.ISO_MAPPING.items():
+        # Find findings that map to this ISO clause
+        related_checks = set()
+        for finding in findings:
+            if iso_clause in finding.iso_mapping:
+                related_checks.add(finding.check_id)
+
+        # Always include all ISO clauses for comprehensive coverage
+        coverage.append(
+            ISOCoverage(
+                clause=iso_clause,
+                title=info["name"],
+                description=info["description"],
+                related_checks=sorted(list(related_checks)),
+            )
+        )
+
+    return coverage

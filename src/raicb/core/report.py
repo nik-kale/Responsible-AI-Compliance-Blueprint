@@ -1,6 +1,7 @@
 """Report generation in multiple formats."""
 
 import importlib.resources
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -23,7 +24,7 @@ def generate_report(
     Args:
         report: Assessment report data
         output_dir: Output directory for reports
-        formats: List of formats to generate (md, html, pdf)
+        formats: List of formats to generate (md, html, json, pdf)
         template_dir: Custom template directory (uses built-in if None)
 
     Returns:
@@ -79,6 +80,15 @@ def generate_report(
         content = template.render(**context)
         html_path.write_text(content, encoding="utf-8")
         generated_files.append(html_path)
+
+    # Generate JSON report
+    if "json" in formats:
+        json_path = output_dir / "assessment.json"
+        # Convert Pydantic model to dict, which handles nested models
+        report_dict = report.model_dump(mode='json')
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(report_dict, f, indent=2, ensure_ascii=False)
+        generated_files.append(json_path)
 
     # Generate PDF report (optional, requires weasyprint)
     if "pdf" in formats:

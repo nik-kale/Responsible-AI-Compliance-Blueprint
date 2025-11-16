@@ -7,6 +7,9 @@ from typing import List, Optional
 
 from ..config.schema import ProjectConfig, Finding, Severity, Status
 from ..core.loader import resolve_path
+from ..core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_checks(config: ProjectConfig, project_root: Path, env: str) -> List[Finding]:
