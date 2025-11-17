@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "responsible-ai-compliance-blueprint"
-version = "4.0.0"
-description = "Enterprise-grade self-audit toolkit for AI systems with 114 checks, 100% OWASP & ISO/IEC 42001 coverage, and 3-5x faster performance"
+version = "5.0.0"
+description = "Enterprise-grade self-audit toolkit for AI systems with 144 checks, advanced security scanning, code quality analysis, 100% OWASP & ISO/IEC 42001 coverage, and 3-5x faster performance"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 authors = [
