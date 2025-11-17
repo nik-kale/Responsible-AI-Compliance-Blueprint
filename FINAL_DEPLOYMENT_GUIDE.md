@@ -652,4 +652,4 @@ All systems go! Version 4.0.0 is:
 
 *For questions or issues, refer to documentation in README.md and VERSION_4_IMPLEMENTATION.md*
 
-**Built with ❤️ for responsible AI development**
+**Built with ❤️ for Responsible AI development**

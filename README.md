@@ -784,7 +784,7 @@ A: 5 production-ready templates: AI objectives, logging config, SIEM integration
 
 ---
 
-**Built with ❤️ for responsible AI development**
+**Built with ❤️ for Responsible AI development**
 
 **Status:** ✅ Production Ready - Enterprise Grade - Version 4.0.0
 
