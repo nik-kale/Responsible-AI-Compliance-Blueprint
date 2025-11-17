@@ -1,0 +1,273 @@
+# GitLab CI/CD Template for AI Compliance Checks
+# Using Responsible AI Compliance Blueprint (RAICB)
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  RAICB_CACHE_DIR: "$CI_PROJECT_DIR/.cache/raicb"
+  PYTHON_VERSION: "3.11"
+
+# Cache configuration for faster builds
+cache:
+  key:
+    files:
+      - pyproject.toml
+      - raicb.yaml
+  paths:
+    - .cache/pip
+    - .cache/raicb
+    - venv/
+
+# Pipeline stages
+stages:
+  - validate
+  - assess
+  - report
+  - compare
+
+# Job templates
+.raicb_setup:
+  image: python:${PYTHON_VERSION}-slim
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -e .
+  only:
+    - main
+    - develop
+    - merge_requests
+    - tags
+
+# Stage 1: Validate configuration
+validate:config:
+  extends: .raicb_setup
+  stage: validate
+  script:
+    - raicb validate --config raicb.yaml
+  artifacts:
+    when: on_failure
+    paths:
+      - logs/
+    expire_in: 7 days
+
+# Stage 2: Run compliance assessments for each environment
+assess:development:
+  extends: .raicb_setup
+  stage: assess
+  script:
+    - |
+      raicb run \
+        --config raicb.yaml \
+        --env dev \
+        --out ./reports/dev \
+        --format md,html,json,sarif \
+        --fail-on high \
+        --cache \
+        --track \
+        --verbose
+  artifacts:
+    name: "compliance-dev-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - reports/dev/
+    reports:
+      # GitLab will automatically display SARIF reports
+      sast: reports/dev/raicb-dev.sarif
+    expire_in: 30 days
+  only:
+    - develop
+    - merge_requests
+
+assess:staging:
+  extends: .raicb_setup
+  stage: assess
+  script:
+    - |
+      raicb run \
+        --config raicb.yaml \
+        --env stage \
+        --out ./reports/stage \
+        --format md,html,json,sarif \
+        --fail-on high \
+        --cache \
+        --track \
+        --verbose
+  artifacts:
+    name: "compliance-stage-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - reports/stage/
+    reports:
+      sast: reports/stage/raicb-stage.sarif
+    expire_in: 60 days
+  only:
+    - main
+    - tags
+
+assess:production:
+  extends: .raicb_setup
+  stage: assess
+  script:
+    - |
+      raicb run \
+        --config raicb.yaml \
+        --env prod \
+        --out ./reports/prod \
+        --format md,html,json,sarif \
+        --fail-on critical \
+        --cache \
+        --track \
+        --verbose
+  artifacts:
+    name: "compliance-prod-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - reports/prod/
+    reports:
+      sast: reports/prod/raicb-prod.sarif
+    expire_in: 90 days
+  only:
+    - main
+    - tags
+  when: manual  # Require manual approval for prod checks
+
+# Stage 3: Generate additional reports
+generate:sbom:
+  extends: .raicb_setup
+  stage: report
+  script:
+    - mkdir -p reports/sbom
+    - raicb sbom --output reports/sbom/sbom.json
+  artifacts:
+    name: "sbom-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - reports/sbom/
+    expire_in: 90 days
+  only:
+    - main
+    - tags
+
+export:trends:
+  extends: .raicb_setup
+  stage: report
+  script:
+    - mkdir -p reports/trends
+    - raicb trends --days 90 --export reports/trends/trends-90d.json
+  artifacts:
+    name: "trends-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - reports/trends/
+    expire_in: 90 days
+  only:
+    - main
+    - schedules
+
+# Stage 4: Baseline comparison for regression detection
+compare:baseline:
+  extends: .raicb_setup
+  stage: compare
+  script:
+    - |
+      if [ -f baseline.json ]; then
+        echo "Comparing against baseline..."
+        raicb baseline-compare \
+          reports/prod/assessment.json \
+          --baseline baseline.json \
+          --fail-on-regression
+      else
+        echo "No baseline found. Creating baseline from current assessment..."
+        raicb baseline-create \
+          reports/prod/assessment.json \
+          --output baseline.json
+      fi
+  artifacts:
+    name: "baseline-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - baseline.json
+    expire_in: 1 year
+  dependencies:
+    - assess:production
+  only:
+    - main
+    - tags
+
+# Webhook notification (optional)
+notify:webhook:
+  extends: .raicb_setup
+  stage: report
+  script:
+    - |
+      if [ -n "$COMPLIANCE_WEBHOOK_URL" ]; then
+        raicb run \
+          --config raicb.yaml \
+          --env prod \
+          --out ./reports/webhook \
+          --format json \
+          --webhook "$COMPLIANCE_WEBHOOK_URL" \
+          --fail-on critical
+      else
+        echo "COMPLIANCE_WEBHOOK_URL not set, skipping webhook notification"
+      fi
+  only:
+    - main
+    - tags
+  when: on_success
+  allow_failure: true
+
+# Scheduled daily compliance check
+daily:compliance:
+  extends: .raicb_setup
+  stage: assess
+  script:
+    - |
+      raicb run \
+        --config raicb.yaml \
+        --env prod \
+        --out ./reports/daily \
+        --format md,html,json \
+        --fail-on critical \
+        --cache \
+        --track \
+        --verbose
+  artifacts:
+    name: "daily-compliance-$CI_PIPELINE_ID"
+    paths:
+      - reports/daily/
+    expire_in: 30 days
+  only:
+    - schedules
+
+# Manual job for creating new baseline
+create:baseline:
+  extends: .raicb_setup
+  stage: compare
+  script:
+    - |
+      echo "Creating new compliance baseline..."
+      raicb run \
+        --config raicb.yaml \
+        --env prod \
+        --out ./reports/baseline-creation \
+        --format json
+
+      raicb baseline-create \
+        reports/baseline-creation/assessment.json \
+        --output baseline-new.json
+
+      echo "New baseline created: baseline-new.json"
+      echo "Review and rename to baseline.json to activate"
+  artifacts:
+    name: "baseline-new-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - baseline-new.json
+    expire_in: 90 days
+  when: manual
+  only:
+    - main
+
+# Cleanup cache
+cleanup:cache:
+  extends: .raicb_setup
+  stage: .post
+  script:
+    - raicb cache-clear --older-than 7
+  when: manual
+  only:
+    - main

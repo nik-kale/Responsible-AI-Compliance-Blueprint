@@ -1,0 +1,210 @@
+name: AI Compliance Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to check'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - dev
+          - stage
+          - prod
+      fail_on:
+        description: 'Fail on severity level'
+        required: true
+        default: 'critical'
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+          - any
+
+jobs:
+  compliance-assessment:
+    name: Run Compliance Assessment
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install RAICB
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Cache compliance results
+        uses: actions/cache@v3
+        with:
+          path: ~/.raicb/cache
+          key: raicb-cache-${{ hashFiles('raicb.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            raicb-cache-${{ hashFiles('raicb.yaml') }}-
+            raicb-cache-
+
+      - name: Validate configuration
+        run: |
+          raicb validate --config raicb.yaml
+
+      - name: Run compliance checks
+        id: compliance
+        run: |
+          ENV="${{ github.event.inputs.environment || 'prod' }}"
+          FAIL_ON="${{ github.event.inputs.fail_on || 'critical' }}"
+
+          raicb run \
+            --config raicb.yaml \
+            --env "$ENV" \
+            --out ./reports \
+            --format md,html,json,sarif \
+            --fail-on "$FAIL_ON" \
+            --cache \
+            --track \
+            --verbose
+
+      - name: Upload compliance reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: compliance-reports-${{ github.run_number }}
+          path: reports/
+          retention-days: 90
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: reports/raicb-*.sarif
+
+      - name: Generate SBOM
+        run: |
+          raicb sbom --output reports/sbom.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom-${{ github.run_number }}
+          path: reports/sbom.json
+
+      - name: Post results to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('reports/assessment.json', 'utf8'));
+
+            const body = `## 🔒 AI Compliance Assessment
+
+            **Environment:** ${{ github.event.inputs.environment || 'prod' }}
+            **Checks:** ${report.total_checks}
+
+            | Status | Count |
+            |--------|-------|
+            | ✅ Passed | ${report.passed_checks} |
+            | ❌ Failed | ${report.failed_checks} |
+            | ⚠️ Warnings | ${report.warnings} |
+
+            **Critical Findings:** ${report.summary.by_severity.critical || 0}
+            **High Findings:** ${report.summary.by_severity.high || 0}
+
+            📊 [View full report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  baseline-comparison:
+    name: Compare Against Baseline
+    runs-on: ubuntu-latest
+    needs: compliance-assessment
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install RAICB
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Download assessment report
+        uses: actions/download-artifact@v3
+        with:
+          name: compliance-reports-${{ github.run_number }}
+          path: reports/
+
+      - name: Compare with baseline
+        run: |
+          if [ -f baseline.json ]; then
+            raicb baseline-compare \
+              reports/assessment.json \
+              --baseline baseline.json \
+              --fail-on-regression
+          else
+            echo "No baseline found, skipping comparison"
+          fi
+
+  trends-analysis:
+    name: Analyze Compliance Trends
+    runs-on: ubuntu-latest
+    needs: compliance-assessment
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install RAICB
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Restore trends database
+        uses: actions/cache@v3
+        with:
+          path: ~/.raicb/trends.db
+          key: raicb-trends-${{ github.ref_name }}
+
+      - name: Export trends
+        run: |
+          raicb trends --days 90 --export trends-90d.json
+
+      - name: Upload trends
+        uses: actions/upload-artifact@v3
+        with:
+          name: compliance-trends
+          path: trends-90d.json
