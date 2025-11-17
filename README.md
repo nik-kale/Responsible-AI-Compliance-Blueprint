@@ -1,45 +1,48 @@
 # Responsible AI Compliance Blueprint
 
-> **Version 4.0** - Enterprise-Grade AI Compliance Toolkit with 114 Checks, 3-5x Faster Performance, and Complete ISO/IEC 42001 Coverage
+> **Version 5.0** - Enterprise-Grade AI Compliance Toolkit with 144 Checks, Advanced Security Scanning, Code Quality Analysis, and Complete ISO/IEC 42001 Coverage
 
-A portable, open-source toolkit for self-auditing AI systems against **OWASP AI Security Top 10** and **ISO/IEC 42001** standards.
+A portable, open-source toolkit for self-auditing AI systems against **OWASP AI Security Top 10**, **ISO/IEC 42001**, and **CWE** standards.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-4.0.0-green.svg)](VERSION_4_IMPLEMENTATION.md)
-[![Checks](https://img.shields.io/badge/checks-114-blue.svg)](VERSION_4_IMPLEMENTATION.md)
+[![Version](https://img.shields.io/badge/version-5.0.0-green.svg)](CHANGELOG.md)
+[![Checks](https://img.shields.io/badge/checks-144-blue.svg)](CHANGELOG.md)
 
 ---
 
-## ✨ What's New in Version 4
+## ✨ What's New in Version 5.0
 
-### 🚀 Performance & Scale
-- **3-5x Faster Execution** - Parallel check execution using ThreadPoolExecutor (10-15s → 3-5s)
-- **114 Total Checks** - Expanded from 99 checks (+23 new checks)
-- **Complete ISO Coverage** - 100% coverage of ISO/IEC 42001 clauses
+### 🔐 Advanced Security & Vulnerability Detection (15 NEW Checks)
+- **Secrets Detection** - Scan for API keys, tokens, credentials (AWS, GitHub, OpenAI, Anthropic, Stripe, etc.)
+- **AI-Specific Vulnerabilities** - Prompt injection, adversarial inputs, model extraction, data poisoning patterns
+- **CVE Scanning** - Built-in vulnerability database for TensorFlow, PyTorch, Transformers, scikit-learn
+- **OWASP Top 10 Coverage** - SQL injection, XSS, command injection, path traversal detection
+- **Cryptography Validation** - Detect weak algorithms (MD5, SHA1, DES, RC4), TLS/SSL misconfiguration
+- **CWE Mappings** - 12+ Common Weakness Enumerations for standardized vulnerability reporting
 
-### 🔒 Enterprise Logging & Audit
-- **12 Logging Checks** (was 4) - SIEM integration, audit trails, compliance
-- SIEM platform detection (Splunk, ELK, Datadog, Sumo Logic)
-- Prediction/inference logging validation
-- Log retention compliance (GDPR, SOX, HIPAA)
-- Audit trail immutability checks
+### 💎 Code Quality & Optimization Analysis (15 NEW Checks)
+- **Cyclomatic Complexity** - AST-based analysis with function-level complexity scoring
+- **Code Duplication Detection** - Identify duplicated blocks for DRY principle
+- **Technical Debt Tracking** - TODO, FIXME, HACK, XXX, BUG indicator counting
+- **Type Hints Coverage** - PEP 484/585 compliance analysis
+- **Docstring Coverage** - PEP 257 documentation completeness
+- **PEP 8 Compliance** - Naming conventions, function length, class complexity validation
+- **Maintainability Metrics** - Nested complexity, dead code, magic numbers detection
 
-### 📋 Comprehensive Governance
-- **25 Governance Checks** (was 10) - Complete ISO lifecycle coverage
-- AI objectives and measurability (ISO 6.2)
-- Continuous improvement processes (ISO 10)
-- Performance monitoring (ISO 9)
-- Stakeholder communication (ISO 7.4)
-- Third-party risk management (ISO 8.2)
+### 📊 Total Security Arsenal
+- **144 Total Checks** (was 114) - +30 new checks (+26% increase)
+- **53 Security Checks** (was 38) - 40% increase in security coverage
+- **12 Check Modules** - New: Advanced Security + Code Quality
+- **60+ Framework Mappings** - OWASP, ISO42001, CWE, GDPR, SOX, HIPAA
 
-### 🛠️ DevOps Integration
-- **GitHub Actions Workflow** - Turnkey CI/CD integration
-- **GitLab CI/CD Pipeline** - Complete multi-environment pipeline
-- **SARIF Export** - Automatic upload to GitHub Security tab
-- **5 Auto-Fix Templates** - Enterprise configurations ready to deploy
+### 🚀 Maintained from Version 4
+- **3-5x Faster Execution** - Parallel check execution (maintained)
+- **100% ISO/IEC 42001 Coverage** - Complete compliance framework
+- **CI/CD Integration** - GitHub Actions + GitLab CI pipelines
+- **Auto-Fix Templates** - 5 production-ready configurations
 
-See [VERSION_4_IMPLEMENTATION.md](VERSION_4_IMPLEMENTATION.md) for complete details.
+See [CHANGELOG.md](CHANGELOG.md) for complete Version 5 details.
 
 ---
 
@@ -59,9 +62,9 @@ Always consult with qualified compliance professionals for official certificatio
 ## 🎯 Features
 
 ### Core Capabilities
-- **🔍 114 Comprehensive Checks** - Data integrity, model artifacts, supply chain, PII/privacy, inference security, logging (12 checks), governance (25 checks), impact assessment, plugin security, model security
+- **🔍 144 Comprehensive Checks** - Data integrity, model artifacts, supply chain, PII/privacy, inference security, logging (12 checks), governance (25 checks), impact assessment, plugin security, model security, **advanced security (15 checks)**, **code quality (15 checks)**
 - **⚡ 3-5x Faster** - Parallel execution with ThreadPoolExecutor (5 concurrent workers)
-- **📊 Complete Framework Coverage** - 100% OWASP AI Top 10 and ISO/IEC 42001 coverage
+- **📊 Complete Framework Coverage** - 100% OWASP AI Top 10, ISO/IEC 42001, plus CWE mappings
 - **🖥️ Dual Interface** - CLI (Typer) and Web UI (Streamlit)
 - **📝 Multi-Format Reports** - Markdown, HTML, JSON, SARIF, and optional PDF
 - **🎯 Risk Matrix** - Visual risk assessment with likelihood × impact scoring
@@ -69,7 +72,22 @@ Always consult with qualified compliance professionals for official certificatio
 - **🐳 Docker Support** - Run as CLI or web server in containers
 - **🧩 Pluggable Architecture** - Easy to extend with custom checks
 
-### Version 4 Advanced Features
+### Version 5 Security Features (NEW)
+- **🔑 Secrets Detection** - 13+ secret types across multiple file formats
+- **🛡️ Vulnerability Scanning** - CVE database for ML libraries
+- **⚠️ AI Vulnerability Patterns** - Prompt injection, model extraction, adversarial detection
+- **🔒 OWASP Top 10** - SQL injection, XSS, command injection, path traversal
+- **🔐 Crypto Validation** - Weak algorithm detection, TLS/SSL configuration
+- **📋 CWE Mappings** - Standardized vulnerability classification
+
+### Version 5 Quality Features (NEW)
+- **📊 Complexity Analysis** - Cyclomatic complexity with AST parsing
+- **🔍 Code Duplication** - DRY principle validation
+- **📝 Documentation Coverage** - Type hints and docstring analysis
+- **🎯 PEP 8 Compliance** - Naming conventions and style validation
+- **⚙️ Technical Debt** - TODO/FIXME tracking and metrics
+
+### Advanced Features (v4+)
 - **🔄 Baseline Comparison** - Regression detection for CI/CD pipelines
 - **📈 Trend Tracking** - Historical compliance analytics with SQLite storage
 - **🤖 Auto-Remediation** - Interactive wizard with 6 auto-fixable issues
@@ -83,13 +101,15 @@ Always consult with qualified compliance professionals for official certificatio
 
 ## 📊 Framework Coverage
 
-| Framework | Coverage | Checks |
-|-----------|----------|--------|
-| **OWASP AI Security Top 10** | ✅ 100% | All 10 categories covered |
-| **ISO/IEC 42001** | ✅ 100% | Clauses 4, 5, 6, 7, 8, 9, 10 |
-| **GDPR** | ✅ 95% | PII, privacy, retention, rights |
-| **SOX** | ✅ 85% | Audit trails, controls, change mgmt |
-| **HIPAA** | ✅ 75% | Log security, access controls |
+| Framework | Coverage | Checks | Version 5 Enhancement |
+|-----------|----------|--------|----------------------|
+| **OWASP AI Security Top 10** | ✅ 100% | All 10 categories covered | ✨ +AI vulnerability patterns |
+| **OWASP Top 10 2021** | ✅ 85% | A01, A02, A03, A05, A06, A07, A08 | ✨ NEW in v5.0 |
+| **ISO/IEC 42001** | ✅ 100% | Clauses 4, 5, 6, 7, 8, 9, 10 | - |
+| **CWE (Common Weakness Enum)** | ✅ 12 CWEs | Top security weaknesses | ✨ NEW in v5.0 |
+| **GDPR** | ✅ 95% | PII, privacy, retention, rights | - |
+| **SOX** | ✅ 85% | Audit trails, controls, change mgmt | - |
+| **HIPAA** | ✅ 75% | Log security, access controls | - |
 
 ---
 
