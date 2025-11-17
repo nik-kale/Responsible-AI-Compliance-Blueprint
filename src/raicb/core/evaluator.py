@@ -28,6 +28,8 @@ from ..checks import (
     impact_assessment,
     plugin_security,
     model_security,
+    advanced_security,
+    code_quality,
 )
 from . import mapping
 from .cache import CheckCache
@@ -88,6 +90,8 @@ def run_all_checks(
         ("Impact Assessment", impact_assessment),
         ("Plugin Security", plugin_security),
         ("Model Security", model_security),
+        ("Advanced Security", advanced_security),
+        ("Code Quality", code_quality),
     ]
 
     if verbose:

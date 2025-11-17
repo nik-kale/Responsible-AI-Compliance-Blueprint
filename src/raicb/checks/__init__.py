@@ -11,6 +11,8 @@ from . import (
     impact_assessment,
     plugin_security,
     model_security,
+    advanced_security,
+    code_quality,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "impact_assessment",
     "plugin_security",
     "model_security",
+    "advanced_security",
+    "code_quality",
 ]
