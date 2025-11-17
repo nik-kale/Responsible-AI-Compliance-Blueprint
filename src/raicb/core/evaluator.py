@@ -1,5 +1,6 @@
 """Evaluator for running all compliance checks."""
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -97,23 +98,52 @@ def run_all_checks(
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
+        # Create progress tasks for all checks
+        tasks = {}
         for check_name, check_module in check_modules:
-            task = progress.add_task(f"Running {check_name} checks...", total=None)
+            task_id = progress.add_task(f"Running {check_name} checks...", total=None)
+            tasks[check_name] = task_id
 
+        # Run checks in parallel using ThreadPoolExecutor
+        def run_check_module(check_tuple):
+            """Helper function to run a single check module."""
+            check_name, check_module = check_tuple
             try:
                 findings = check_module.run_checks(config, project_root, env)
-                all_findings.extend(findings)
-
-                if verbose:
-                    pass_count = sum(1 for f in findings if f.status == Status.PASS)
-                    fail_count = sum(1 for f in findings if f.status == Status.FAIL)
-                    console.print(
-                        f"  {check_name}: {len(findings)} checks "
-                        f"({pass_count} passed, {fail_count} failed)"
-                    )
-
+                return check_name, findings, None
             except Exception as e:
-                console.print(f"  [red]Error in {check_name}: {str(e)}[/red]")
+                return check_name, None, e
+
+        # Use ThreadPoolExecutor for parallel execution (max 5 workers for optimal performance)
+        results = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            # Submit all check modules
+            futures = {
+                executor.submit(run_check_module, check_tuple): check_tuple[0]
+                for check_tuple in check_modules
+            }
+
+            # Collect results as they complete
+            for future in as_completed(futures):
+                check_name = futures[future]
+                try:
+                    name, findings, error = future.result()
+                    results.append((name, findings, error))
+
+                    # Remove progress task
+                    if name in tasks:
+                        progress.remove_task(tasks[name])
+
+                except Exception as e:
+                    # Unexpected error in future execution
+                    results.append((check_name, None, e))
+                    if check_name in tasks:
+                        progress.remove_task(tasks[check_name])
+
+        # Process results
+        for check_name, findings, error in results:
+            if error:
+                console.print(f"  [red]Error in {check_name}: {str(error)}[/red]")
                 # Add error finding
                 all_findings.append(
                     Finding(
@@ -123,14 +153,22 @@ def run_all_checks(
                         status=Status.ERROR,
                         category="system",
                         description=f"Error running {check_name} checks",
-                        evidence=str(e),
+                        evidence=str(error),
                         remediation="Check system logs and configuration",
                         owasp_mapping=[],
                         iso_mapping=[],
                     )
                 )
+            else:
+                all_findings.extend(findings)
 
-            progress.remove_task(task)
+                if verbose:
+                    pass_count = sum(1 for f in findings if f.status == Status.PASS)
+                    fail_count = sum(1 for f in findings if f.status == Status.FAIL)
+                    console.print(
+                        f"  {check_name}: {len(findings)} checks "
+                        f"({pass_count} passed, {fail_count} failed)"
+                    )
 
         # Run custom plugins if directory provided
         if plugins_dir and plugins_dir.exists():
