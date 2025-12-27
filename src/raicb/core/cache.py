@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
-from .logger import get_logger
+from raicb.core.logger import get_logger
+from raicb.core.metrics import CACHE_HITS, CACHE_MISSES, CACHE_SIZE
 
 logger = get_logger(__name__)
 
@@ -70,6 +71,7 @@ class CheckCache:
 
             if not cache_file.exists():
                 logger.debug(f"Cache miss: {key}")
+                CACHE_MISSES.inc()
                 return None
 
             # Check age
@@ -78,6 +80,7 @@ class CheckCache:
 
             if age > max_age:
                 logger.debug(f"Cache expired: {key} (age: {age})")
+                CACHE_MISSES.inc()
                 # Clean up expired cache
                 cache_file.unlink()
                 return None
@@ -87,10 +90,12 @@ class CheckCache:
                 data = pickle.load(f)
 
             logger.info(f"Cache hit: {key} (age: {age})")
+            CACHE_HITS.inc()
             return data
 
         except Exception as e:
             logger.error(f"Failed to load from cache: {e}")
+            CACHE_MISSES.inc()
             return None
 
     def set(self, config_path: Path, env: str, data: Any) -> bool:
@@ -113,6 +118,10 @@ class CheckCache:
                 pickle.dump(data, f)
 
             logger.debug(f"Cached: {key}")
+            
+            # Update cache size metric
+            CACHE_SIZE.observe(cache_file.stat().st_size)
+            
             return True
 
         except Exception as e:

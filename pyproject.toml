@@ -47,6 +47,7 @@ dependencies = [
     "pip-audit>=2.6.0",
     "pipdeptree>=2.13.0",
     "python-json-logger>=2.0.0",
+    "prometheus-client>=0.17.0",
     "packaging>=23.0",
 ]
 

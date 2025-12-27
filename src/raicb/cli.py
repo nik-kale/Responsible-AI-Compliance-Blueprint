@@ -192,11 +192,25 @@ def run(
         "--track",
         help="Record assessment in trends database",
     ),
+    metrics_port: Optional[int] = typer.Option(
+        None,
+        "--metrics-port",
+        help="Expose Prometheus metrics on specified port",
+    ),
 ):
     """
     Run compliance checks and generate reports.
     """
     console.print("[bold blue]Running Compliance Assessment[/bold blue]\n")
+
+    # Start metrics server if requested
+    if metrics_port:
+        try:
+            from prometheus_client import start_http_server
+            start_http_server(metrics_port)
+            console.print(f"[blue]Metrics server running on port {metrics_port}[/blue]")
+        except Exception as e:
+            console.print(f"[yellow]Failed to start metrics server: {e}[/yellow]")
 
     # Validate inputs
     if not config.exists():

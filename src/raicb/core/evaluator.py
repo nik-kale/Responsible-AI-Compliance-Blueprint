@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+import time
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -113,10 +114,21 @@ def run_all_checks(
             """Helper function to run a single check module."""
             check_name, check_module = check_tuple
             try:
+                start = time.perf_counter()
                 findings = check_module.run_checks(config, project_root, env)
-                return check_name, findings, None
+                duration = time.perf_counter() - start
+
+                # Record metrics if available
+                try:
+                    from raicb.core.metrics import CHECK_DURATION
+                    module_name = check_module.__name__.split('.')[-1]
+                    CHECK_DURATION.labels(check_module=module_name, check_id="all").observe(duration)
+                except (ImportError, Exception):
+                    pass
+
+                return check_name, findings, None, duration
             except Exception as e:
-                return check_name, None, e
+                return check_name, None, e, 0
 
         # Use ThreadPoolExecutor for parallel execution (max 5 workers for optimal performance)
         results = []
@@ -131,8 +143,8 @@ def run_all_checks(
             for future in as_completed(futures):
                 check_name = futures[future]
                 try:
-                    name, findings, error = future.result()
-                    results.append((name, findings, error))
+                    name, findings, error, duration = future.result()
+                    results.append((name, findings, error, duration))
 
                     # Remove progress task
                     if name in tasks:
@@ -140,12 +152,12 @@ def run_all_checks(
 
                 except Exception as e:
                     # Unexpected error in future execution
-                    results.append((check_name, None, e))
+                    results.append((check_name, None, e, 0))
                     if check_name in tasks:
                         progress.remove_task(tasks[check_name])
 
         # Process results
-        for check_name, findings, error in results:
+        for check_name, findings, error, duration in results:
             if error:
                 console.print(f"  [red]Error in {check_name}: {str(error)}[/red]")
                 # Add error finding
@@ -171,7 +183,8 @@ def run_all_checks(
                     fail_count = sum(1 for f in findings if f.status == Status.FAIL)
                     console.print(
                         f"  {check_name}: {len(findings)} checks "
-                        f"({pass_count} passed, {fail_count} failed)"
+                        f"({pass_count} passed, {fail_count} failed) "
+                        f"in {duration:.2f}s"
                     )
 
         # Run custom plugins if directory provided
@@ -182,13 +195,17 @@ def run_all_checks(
                 plugin_count = plugin_manager.discover_plugins()
 
                 if plugin_count > 0:
+                    start = time.perf_counter()
                     plugin_findings = plugin_manager.run_all_plugins(config, project_root, env)
+                    duration = time.perf_counter() - start
+                    
                     all_findings.extend(plugin_findings)
 
                     if verbose:
                         console.print(
                             f"  Plugins: {plugin_count} plugin(s) "
-                            f"returned {len(plugin_findings)} findings"
+                            f"returned {len(plugin_findings)} findings "
+                            f"in {duration:.2f}s"
                         )
             except Exception as e:
                 console.print(f"  [yellow]Warning: Plugin execution failed: {str(e)}[/yellow]")
