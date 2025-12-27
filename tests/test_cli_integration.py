@@ -16,7 +16,7 @@ def test_full_workflow(runner, tmp_path):
         # 3. Run assessment (expect failures as sample project is empty/dummy)
         # We disable fail-on to ensure exit code 0 if checks run but fail
         result = runner.invoke(app, ["run", "--fail-on", "none"])
-        
+
         # Depending on environment, check modules might fail (e.g. missing tools)
         # But we expect the command to complete execution
         assert "Assessment Complete" in result.stdout

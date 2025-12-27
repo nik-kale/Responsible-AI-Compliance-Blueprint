@@ -128,7 +128,7 @@ def main():
             st.sidebar.success(f"System Status: {health['status']}")
         else:
             st.sidebar.error(f"System Status: {health['status']}")
-        
+
         st.sidebar.json(health)
         st.sidebar.markdown("---")
 

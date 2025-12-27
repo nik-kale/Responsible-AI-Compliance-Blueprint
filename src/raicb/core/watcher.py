@@ -20,12 +20,12 @@ class ComplianceChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.is_directory:
             return
-        
+
         # Debounce
         current_time = time.time()
         if current_time - self.last_run < self.debounce_seconds:
             return
-        
+
         filename = Path(event.src_path).name
         if filename.endswith(('.yaml', '.py', '.md')):
             console.print(f"\n[bold yellow]Change detected in {filename}. Re-running checks...[/bold yellow]")
@@ -37,11 +37,11 @@ class ComplianceChangeHandler(FileSystemEventHandler):
             # Reload config in case it changed
             config = load_config(self.config_path)
             run_all_checks(
-                config, 
-                self.project_root, 
-                self.env, 
-                verbose=False, 
-                use_cache=True, 
+                config,
+                self.project_root,
+                self.env,
+                verbose=False,
+                use_cache=True,
                 config_path=self.config_path
             )
         except Exception as e:
@@ -53,13 +53,13 @@ def start_watch_mode(config_path: Path, env: str, project_root: Path):
     observer = Observer()
     observer.schedule(event_handler, str(project_root), recursive=True)
     observer.start()
-    
+
     console.print(f"[bold green]Watching for changes in {project_root}...[/bold green]")
     console.print("Press Ctrl+C to stop.")
-    
+
     # Run initial check
     event_handler.run_checks()
-    
+
     try:
         while True:
             time.sleep(1)

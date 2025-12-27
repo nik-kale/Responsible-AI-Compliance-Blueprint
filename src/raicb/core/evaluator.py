@@ -115,7 +115,7 @@ def run_all_checks(
             check_name, check_module = check_tuple
             try:
                 from raicb.core.exceptions import error_context
-                
+
                 with error_context(f"check module {check_name}", module=check_name):
                     start = time.perf_counter()
                     findings = check_module.run_checks(config, project_root, env)
@@ -201,7 +201,7 @@ def run_all_checks(
                     start = time.perf_counter()
                     plugin_findings = plugin_manager.run_all_plugins(config, project_root, env)
                     duration = time.perf_counter() - start
-                    
+
                     all_findings.extend(plugin_findings)
 
                     if verbose:

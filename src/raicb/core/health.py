@@ -12,7 +12,7 @@ def check_health() -> Dict[str, Any]:
         "dependencies": {},
         "system": {}
     }
-    
+
     # Check dependencies
     # Check for CLI tools if they are used via subprocess
     # pip-audit and pipdeptree are installed as python packages
@@ -29,7 +29,7 @@ def check_health() -> Dict[str, Any]:
     except ImportError:
         health["dependencies"]["pipdeptree"] = False
         health["status"] = "degraded"
-        
+
     # Check cache
     try:
         cache = CheckCache()
@@ -41,6 +41,6 @@ def check_health() -> Dict[str, Any]:
         health["status"] = "unhealthy"
         health["system"]["cache_error"] = str(e)
         health["system"]["cache_writable"] = False
-        
+
     return health
 

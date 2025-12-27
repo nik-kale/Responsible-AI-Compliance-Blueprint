@@ -42,28 +42,28 @@ def timed_check(func: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         start = time.perf_counter()
-        
+
         # Extract context if available
         check_id = kwargs.get('check_id', 'unknown')
         if not check_id and args and hasattr(args[0], 'id'):
              check_id = args[0].id
-        
+
         module = func.__module__.split('.')[-1]
-        
+
         try:
             result = func(*args, **kwargs)
             duration = time.perf_counter() - start
-            
+
             # Record metrics
             CHECK_DURATION.labels(check_module=module, check_id=check_id).observe(duration)
-            
+
             # Log timing
             logger.debug("Check completed", extra={
                 "check": func.__name__,
                 "check_id": check_id,
                 "duration_ms": round(duration * 1000, 2)
             })
-            
+
             return result
         except Exception:
             # We re-raise, but still want to track duration up to failure?
@@ -72,6 +72,6 @@ def timed_check(func: Callable[..., Any]) -> Callable[..., Any]:
             duration = time.perf_counter() - start
             CHECK_DURATION.labels(check_module=module, check_id=check_id).observe(duration)
             raise
-            
+
     return wrapper
 

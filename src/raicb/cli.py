@@ -375,16 +375,16 @@ def watch(
     Run compliance checks continuously on file changes.
     """
     console.print("[bold blue]Starting Continuous Compliance Watch Mode[/bold blue]\n")
-    
+
     if not config.exists():
         console.print(f"[red]Error: Configuration file not found: {config}[/red]")
         raise typer.Exit(1)
-        
+
     try:
         project_root = config.parent.resolve()
     except Exception:
         project_root = Path.cwd()
-        
+
     try:
         start_watch_mode(config, env, project_root)
     except Exception as e:
@@ -399,29 +399,29 @@ def health():
     """
     try:
         status = check_health()
-        
+
         if status["status"] == "healthy":
             console.print(f"[green]Status: {status['status']}[/green]")
         elif status["status"] == "degraded":
             console.print(f"[yellow]Status: {status['status']}[/yellow]")
         else:
             console.print(f"[red]Status: {status['status']}[/red]")
-            
+
         console.print(f"Version: {status['version']}")
-        
+
         console.print("\nDependencies:")
         for dep, ok in status["dependencies"].items():
             color = "green" if ok else "red"
             icon = "✓" if ok else "✗"
             console.print(f"  [{color}]{icon} {dep}[/{color}]")
-            
+
         console.print("\nSystem:")
         for key, value in status["system"].items():
             console.print(f"  {key}: {value}")
-            
+
         if status["status"] == "unhealthy":
             raise typer.Exit(1)
-            
+
     except Exception as e:
         console.print(f"[red]Health check failed: {e}[/red]")
         raise typer.Exit(1)

@@ -118,10 +118,10 @@ class CheckCache:
                 pickle.dump(data, f)
 
             logger.debug(f"Cached: {key}")
-            
+
             # Update cache size metric
             CACHE_SIZE.observe(cache_file.stat().st_size)
-            
+
             return True
 
         except Exception as e:
