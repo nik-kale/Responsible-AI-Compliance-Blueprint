@@ -46,6 +46,7 @@ dependencies = [
     "markdown>=3.5.0",
     "pip-audit>=2.6.0",
     "pipdeptree>=2.13.0",
+    "python-json-logger>=2.0.0",
     "packaging>=23.0",
 ]
 
