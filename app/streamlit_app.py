@@ -120,6 +120,18 @@ def main():
     # Sidebar
     st.sidebar.title("Configuration")
 
+    # Health Check
+    if st.sidebar.button("Check System Health"):
+        from raicb.core.health import check_health
+        health = check_health()
+        if health["status"] == "healthy":
+            st.sidebar.success(f"System Status: {health['status']}")
+        else:
+            st.sidebar.error(f"System Status: {health['status']}")
+        
+        st.sidebar.json(health)
+        st.sidebar.markdown("---")
+
     # Project selection mode
     mode = st.sidebar.radio(
         "Select Mode",

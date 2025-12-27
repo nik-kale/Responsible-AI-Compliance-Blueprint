@@ -35,6 +35,10 @@ ENV MODE=cli
 # Expose Streamlit port
 EXPOSE 8501
 
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD raicb health || exit 1
+
 # Copy entrypoint script
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

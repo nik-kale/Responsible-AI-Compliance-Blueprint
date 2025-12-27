@@ -22,6 +22,7 @@ from .core.plugin import PluginManager
 from .core.dashboard import TrendTracker
 from .core.remediation import RemediationWizard
 from .core.watcher import start_watch_mode
+from .core.health import check_health
 from .integrations.webhook import WebhookIntegration
 from .integrations.sarif import SARIFExporter
 
@@ -388,6 +389,41 @@ def watch(
         start_watch_mode(config, env, project_root)
     except Exception as e:
         console.print(f"[red]Error in watch mode: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def health():
+    """
+    Check system health status.
+    """
+    try:
+        status = check_health()
+        
+        if status["status"] == "healthy":
+            console.print(f"[green]Status: {status['status']}[/green]")
+        elif status["status"] == "degraded":
+            console.print(f"[yellow]Status: {status['status']}[/yellow]")
+        else:
+            console.print(f"[red]Status: {status['status']}[/red]")
+            
+        console.print(f"Version: {status['version']}")
+        
+        console.print("\nDependencies:")
+        for dep, ok in status["dependencies"].items():
+            color = "green" if ok else "red"
+            icon = "✓" if ok else "✗"
+            console.print(f"  [{color}]{icon} {dep}[/{color}]")
+            
+        console.print("\nSystem:")
+        for key, value in status["system"].items():
+            console.print(f"  {key}: {value}")
+            
+        if status["status"] == "unhealthy":
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        console.print(f"[red]Health check failed: {e}[/red]")
         raise typer.Exit(1)
 
 
