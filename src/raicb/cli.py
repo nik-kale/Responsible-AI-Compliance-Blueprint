@@ -21,6 +21,7 @@ from .core.cache import CheckCache
 from .core.plugin import PluginManager
 from .core.dashboard import TrendTracker
 from .core.remediation import RemediationWizard
+from .core.watcher import start_watch_mode
 from .integrations.webhook import WebhookIntegration
 from .integrations.sarif import SARIFExporter
 
@@ -352,6 +353,42 @@ def run(
         console.print(f"\n[red]✗ Assessment failed (--fail-on {fail_on})[/red]")
 
     raise typer.Exit(exit_code)
+
+
+@app.command()
+def watch(
+    config: Path = typer.Option(
+        Path("raicb.yaml"),
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+    env: str = typer.Option(
+        "prod",
+        "--env",
+        "-e",
+        help="Environment to assess (dev/stage/prod)",
+    ),
+):
+    """
+    Run compliance checks continuously on file changes.
+    """
+    console.print("[bold blue]Starting Continuous Compliance Watch Mode[/bold blue]\n")
+    
+    if not config.exists():
+        console.print(f"[red]Error: Configuration file not found: {config}[/red]")
+        raise typer.Exit(1)
+        
+    try:
+        project_root = config.parent.resolve()
+    except Exception:
+        project_root = Path.cwd()
+        
+    try:
+        start_watch_mode(config, env, project_root)
+    except Exception as e:
+        console.print(f"[red]Error in watch mode: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command()
