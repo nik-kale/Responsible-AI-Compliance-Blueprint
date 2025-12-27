@@ -197,11 +197,21 @@ def run(
         "--metrics-port",
         help="Expose Prometheus metrics on specified port",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug mode with full stack traces",
+    ),
 ):
     """
     Run compliance checks and generate reports.
     """
     console.print("[bold blue]Running Compliance Assessment[/bold blue]\n")
+
+    if debug:
+        import logging
+        logging.getLogger().setLevel(logging.DEBUG)
+        console.print("[yellow]Debug mode enabled[/yellow]")
 
     # Start metrics server if requested
     if metrics_port:
@@ -221,7 +231,10 @@ def run(
     try:
         project_config = load_config(config)
     except Exception as e:
-        console.print(f"[red]Error loading configuration: {e}[/red]")
+        if debug:
+            console.print_exception()
+        else:
+            console.print(f"[red]Error loading configuration: {e}[/red]")
         raise typer.Exit(1)
 
     # Get project root
@@ -242,7 +255,10 @@ def run(
             plugins_dir=Path("./plugins") if Path("./plugins").exists() else None,
         )
     except Exception as e:
-        console.print(f"[red]Error running checks: {e}[/red]")
+        if debug:
+            console.print_exception()
+        else:
+            console.print(f"[red]Error running checks: {e}[/red]")
         raise typer.Exit(1)
 
     # Generate reports
@@ -275,7 +291,10 @@ def run(
         console.print(f"\n[green]✓ Reports generated successfully[/green]")
 
     except Exception as e:
-        console.print(f"[red]Error generating reports: {e}[/red]")
+        if debug:
+            console.print_exception()
+        else:
+            console.print(f"[red]Error generating reports: {e}[/red]")
         raise typer.Exit(1)
 
     # Post to webhook if requested

@@ -114,19 +114,22 @@ def run_all_checks(
             """Helper function to run a single check module."""
             check_name, check_module = check_tuple
             try:
-                start = time.perf_counter()
-                findings = check_module.run_checks(config, project_root, env)
-                duration = time.perf_counter() - start
+                from raicb.core.exceptions import error_context
+                
+                with error_context(f"check module {check_name}", module=check_name):
+                    start = time.perf_counter()
+                    findings = check_module.run_checks(config, project_root, env)
+                    duration = time.perf_counter() - start
 
-                # Record metrics if available
-                try:
-                    from raicb.core.metrics import CHECK_DURATION
-                    module_name = check_module.__name__.split('.')[-1]
-                    CHECK_DURATION.labels(check_module=module_name, check_id="all").observe(duration)
-                except (ImportError, Exception):
-                    pass
+                    # Record metrics if available
+                    try:
+                        from raicb.core.metrics import CHECK_DURATION
+                        module_name = check_module.__name__.split('.')[-1]
+                        CHECK_DURATION.labels(check_module=module_name, check_id="all").observe(duration)
+                    except (ImportError, Exception):
+                        pass
 
-                return check_name, findings, None, duration
+                    return check_name, findings, None, duration
             except Exception as e:
                 return check_name, None, e, 0
 
