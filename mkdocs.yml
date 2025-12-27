@@ -1,0 +1,31 @@
+site_name: Responsible AI Compliance Blueprint
+site_description: Enterprise-grade self-audit toolkit for AI systems
+site_author: Responsible AI Toolkit Team
+repo_url: https://github.com/yourusername/responsible-ai-compliance-blueprint
+repo_name: responsible-ai-compliance-blueprint
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_root_heading: true
+            show_source: true
+
+nav:
+  - Home: index.md
+  - API Reference: api-reference.md
+  - Plugin Development: plugin-development.md
+  - Architecture: architecture.md
+  - Error Codes: error-codes.md
+
